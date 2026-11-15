@@ -32,10 +32,17 @@ function run(method: string, path: string) {
 }
 
 describe("restricted license enforcement", () => {
-  it("keeps active case and queue API requests available", async () => {
-    const result = run("POST", "/tickets");
-    await vi.waitFor(() => expect(result.next).toHaveBeenCalledOnce());
-    expect(result.response.status).not.toHaveBeenCalled();
+  it("keeps case viewing and queue processing available", async () => {
+    for (const [method, path] of [
+      ["GET", "/tickets/STC-1001"],
+      ["POST", "/tickets"],
+      ["POST", "/windows/1/call-next"],
+      ["POST", "/windows/1/complete"],
+    ]) {
+      const result = run(method, path);
+      await vi.waitFor(() => expect(result.next).toHaveBeenCalledOnce());
+      expect(result.response.status).not.toHaveBeenCalled();
+    }
   });
 
   it("blocks admin mutations after grace", async () => {

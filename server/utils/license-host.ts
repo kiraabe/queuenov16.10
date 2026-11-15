@@ -1,5 +1,14 @@
 import type { Request } from "express";
 
+import { isIP } from "node:net";
+
+function isLoopbackHostname(hostname: string): boolean {
+  const host = hostname.replace(/^\[|\]$/gu, "").toLowerCase();
+  if (host === "localhost" || host.endsWith(".localhost") || host === "::1") return true;
+  if (isIP(host) === 4) return host.split(".")[0] === "127";
+  return false;
+}
+
 export function getLicenseHost(req: Request): string | null {
   const configuredHost = process.env.LICENSE_HOST?.trim();
   const isProduction =
@@ -21,6 +30,7 @@ export function getLicenseHost(req: Request): string | null {
     ) {
       return null;
     }
+    if (isProduction && isLoopbackHostname(url.hostname)) return null;
     return url.hostname.toLowerCase();
   } catch {
     return null;

@@ -83,8 +83,10 @@ describe("signed license certificates", () => {
     expect(signedLicense.verifyLicenseCertificate(current)?.keyId).toBe("current-key");
   });
 
-  it("keeps installation identity stable in persistent state", async () => {
+  it("keeps installation identity stable in persistent state across module restarts", async () => {
     const first = await signedLicense.createActivationRequest("subcity.example.org");
+    vi.resetModules();
+    signedLicense = await import("../services/signed-license");
     const second = await signedLicense.createActivationRequest("subcity.example.org");
 
     expect(second.installationId).toBe(first.installationId);

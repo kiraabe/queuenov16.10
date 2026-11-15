@@ -163,14 +163,28 @@ describe("local license validation", () => {
     await expect(signedLicense.saveInstalledCertificate(previous)).rejects.toThrow("newer installed license");
   });
 
-  it("starts migration grace only after an activation request is generated", async () => {
+  it("recovers from a domain change after an approved replacement is installed", async () => {
     await installLicense(null, "old.example.org");
+    const previousCertificate = await signedLicense.loadInstalledCertificate();
+    const previousPayload = signedLicense.verifyLicenseCertificate(previousCertificate)!;
     const resultBeforeRequest = await service.validateLicense("new.example.org");
     expect(resultBeforeRequest).toMatchObject({ valid: false, errorCode: "LICENSE_HOST_MISMATCH" });
 
-    await signedLicense.createActivationRequest("new.example.org");
-    const resultAfterRequest = await service.validateLicense("new.example.org");
-    expect(resultAfterRequest).toMatchObject({ valid: true, mode: "grace" });
+    const request = await signedLicense.createActivationRequest("new.example.org");
+    const grace = await service.validateLicense("new.example.org");
+    expect(grace).toMatchObject({ valid: true, mode: "grace" });
+
+    const replacement = signedLicense.createLicenseCertificate({
+      installationId: request.installationId,
+      deploymentId: request.deploymentId,
+      host: request.host,
+      licensee: previousPayload.licensee,
+      expiresAt: null,
+      supersedesLicenseId: previousPayload.licenseId,
+    });
+    await signedLicense.saveInstalledCertificate(replacement);
+
+    expect(await service.validateLicense("new.example.org")).toMatchObject({ valid: true, mode: "active" });
   });
 
   it("restricts a signed license that the issuer has revoked", async () => {

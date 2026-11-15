@@ -221,8 +221,8 @@ async function validateOnlineLicense(certificate: { payload: string; signature: 
         ? cached.failureStartedAt
         : cached.status === "active"
           ? cached.checkedAt
-          : payload.issuedAt
-      : payload.issuedAt;
+          : now
+      : now;
     const unavailable = {
       licenseId: payload.licenseId,
       status: "unavailable" as const,
