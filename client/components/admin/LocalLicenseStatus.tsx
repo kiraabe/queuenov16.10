@@ -12,7 +12,7 @@ export default function LocalLicenseStatus() {
   const [message, setMessage] = useState("");
 
   const loadStatus = async () => {
-    const response = await fetch("/api/license/status");
+    const response = await fetch("/api/admin/license-info");
     const data: ValidateLicenseResponse = await response.json();
     setStatus(data);
   };

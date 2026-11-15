@@ -1278,10 +1278,18 @@ export async function initDb() {
       created_by_user_id uuid references users(id) on delete set null,
       notes text,
       supersedes_license_id uuid,
-      migration_reason text
+      migration_reason text,
+      superseded_at timestamptz,
+      superseded_by_user_id uuid references users(id) on delete set null,
+      revoked_at timestamptz,
+      revoked_by_user_id uuid references users(id) on delete set null
     );`);
     await p.query(`ALTER TABLE license_issuances ADD COLUMN IF NOT EXISTS deployment_id text;`);
     await p.query(`ALTER TABLE license_issuances ADD COLUMN IF NOT EXISTS previous_deployment_id text;`);
+    await p.query(`ALTER TABLE license_issuances ADD COLUMN IF NOT EXISTS superseded_at timestamptz;`);
+    await p.query(`ALTER TABLE license_issuances ADD COLUMN IF NOT EXISTS superseded_by_user_id uuid references users(id) on delete set null;`);
+    await p.query(`ALTER TABLE license_issuances ADD COLUMN IF NOT EXISTS revoked_at timestamptz;`);
+    await p.query(`ALTER TABLE license_issuances ADD COLUMN IF NOT EXISTS revoked_by_user_id uuid references users(id) on delete set null;`);
     await p.query(`CREATE INDEX IF NOT EXISTS idx_license_issuances_installation ON license_issuances(installation_id);`);
     await p.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_license_issuances_active_deployment ON license_issuances(deployment_id) WHERE status = 'active' AND deployment_id IS NOT NULL;`);
 
@@ -4264,6 +4272,10 @@ export interface LicenseIssuanceRecord {
   notes: string | null;
   supersedesLicenseId: string | null;
   migrationReason: string | null;
+  supersededAt: number | null;
+  supersededByUserId: string | null;
+  revokedAt: number | null;
+  revokedByUserId: string | null;
 }
 
 export async function createLicenseIssuanceDb(input: {
@@ -4294,8 +4306,8 @@ export async function createLicenseIssuanceDb(input: {
       previousInstallationId = previous.rows[0].installation_id;
       previousDeploymentId = previous.rows[0].deployment_id;
       await client.query(
-        `UPDATE license_issuances SET status = 'superseded' WHERE license_id = $1`,
-        [input.supersedesLicenseId],
+        `UPDATE license_issuances SET status = 'superseded', superseded_at = now(), superseded_by_user_id = $2 WHERE license_id = $1`,
+        [input.supersedesLicenseId, input.createdByUserId],
       );
     } else {
       const active = await client.query(
@@ -4343,16 +4355,21 @@ export async function listLicenseIssuancesDb(): Promise<LicenseIssuanceRecord[]>
       extract(epoch from expires_at)*1000 as "expiresAt",
       extract(epoch from created_at)*1000 as "createdAt",
       created_by_user_id as "createdByUserId", notes,
-      supersedes_license_id as "supersedesLicenseId", migration_reason as "migrationReason"
+      supersedes_license_id as "supersedesLicenseId", migration_reason as "migrationReason",
+      extract(epoch from superseded_at)*1000 as "supersededAt",
+      superseded_by_user_id as "supersededByUserId",
+      extract(epoch from revoked_at)*1000 as "revokedAt",
+      revoked_by_user_id as "revokedByUserId"
      FROM license_issuances ORDER BY created_at DESC`,
   );
   return result.rows;
 }
 
-export async function updateLicenseIssuanceStatusDb(licenseId: string, status: "revoked" | "active"): Promise<boolean> {
+export async function updateLicenseIssuanceStatusDb(licenseId: string, status: "revoked" | "active", actorUserId: string | null): Promise<boolean> {
   const result = await getPool().query(
-    `UPDATE license_issuances SET status = $2 WHERE license_id = $1`,
-    [licenseId, status],
+    `UPDATE license_issuances SET status = $2, revoked_at = CASE WHEN $2 = 'revoked' THEN now() ELSE NULL END,
+       revoked_by_user_id = CASE WHEN $2 = 'revoked' THEN $3 ELSE NULL END WHERE license_id = $1`,
+    [licenseId, status, actorUserId],
   );
   return result.rowCount > 0;
 }

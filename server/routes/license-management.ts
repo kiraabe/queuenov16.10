@@ -161,7 +161,7 @@ export const listSignedLicensesHandler: RequestHandler = async (_req, res) => {
 
 export const revokeSignedLicenseHandler: RequestHandler = async (req, res) => {
   try {
-    const revoked = await updateLicenseIssuanceStatusDb(req.params.licenseId, "revoked");
+    const revoked = await updateLicenseIssuanceStatusDb(req.params.licenseId, "revoked", (req as any).auth?.id ?? null);
     if (!revoked) return res.status(404).json({ success: false, message: "Issued license not found." });
     res.json({ success: true, message: "License marked revoked in issuer records. Offline installations require a replacement or update to receive revocation." });
   } catch (error) {
