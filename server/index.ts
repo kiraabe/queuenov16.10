@@ -4,7 +4,7 @@ import cors from "cors";
 import helmet from "helmet";
 import { getPool } from "./store/db";
 import { handleDemo } from "./routes/demo";
-import { validateLicenseHandler, checkLicenseStatusHandler, createActivationRequestHandler, importLicenseCertificateHandler, getLocalLicenseInfoHandler } from "./routes/license";
+import { validateLicenseHandler, checkLicenseStatusHandler, createActivationRequestHandler, importLicenseCertificateHandler, getLocalLicenseInfoHandler, onlineLicenseCheckHandler } from "./routes/license";
 import {
   createLicenseHandler,
   listLicensesHandler,
@@ -306,6 +306,7 @@ export function createServer() {
   app.get("/api/demo", handleDemo);
   app.get("/api/license/status", checkLicenseStatusHandler);
   app.post("/api/license/validate", validateLicenseHandler);
+  app.post("/api/license/check", onlineLicenseCheckHandler);
   app.get("/api/license/activation-request", createActivationRequestHandler);
   app.post("/api/license/import", importLicenseCertificateHandler);
   app.get("/api/license/capabilities", licenseCapabilitiesHandler);

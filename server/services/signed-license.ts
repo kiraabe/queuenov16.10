@@ -33,6 +33,7 @@ const LICENSE_STATE_DIR = process.env.LICENSE_STATE_DIR || path.resolve(process.
 const IDENTITY_PATH = path.join(LICENSE_STATE_DIR, "installation.json");
 const CERTIFICATE_PATH = path.join(LICENSE_STATE_DIR, "license.json");
 const LEGACY_ACTIVATION_PATH = path.join(LICENSE_STATE_DIR, "legacy-activation.json");
+const ONLINE_STATUS_PATH = path.join(LICENSE_STATE_DIR, "online-status.json");
 
 function signingPrivateKey(): crypto.KeyObject {
   const rawKey = process.env.LICENSE_SIGNING_PRIVATE_KEY?.replace(/\\n/gu, "\n");
@@ -134,6 +135,41 @@ export function verifyLicenseCertificate(value: unknown): LicenseCertificatePayl
   } catch {
     return null;
   }
+}
+
+export type OnlineLicenseStatus = "active" | "revoked" | "superseded" | "expired" | "not_found" | "unavailable";
+
+export interface CachedOnlineLicenseStatus {
+  licenseId: string;
+  status: OnlineLicenseStatus;
+  checkedAt: number;
+  lastAttemptAt: number;
+  failureStartedAt: number | null;
+  expiresAt: number | null;
+}
+
+export async function loadOnlineLicenseStatus(): Promise<CachedOnlineLicenseStatus | null> {
+  try {
+    const value = JSON.parse(await readFile(ONLINE_STATUS_PATH, "utf8")) as Partial<CachedOnlineLicenseStatus>;
+    if (
+      typeof value.licenseId !== "string" ||
+      !["active", "revoked", "superseded", "expired", "not_found", "unavailable"].includes(value.status ?? "") ||
+      typeof value.checkedAt !== "number" || !Number.isFinite(value.checkedAt) ||
+      typeof value.lastAttemptAt !== "number" || !Number.isFinite(value.lastAttemptAt) ||
+      !(value.failureStartedAt === null || (typeof value.failureStartedAt === "number" && Number.isFinite(value.failureStartedAt))) ||
+      !(value.expiresAt === null || (typeof value.expiresAt === "number" && Number.isFinite(value.expiresAt)))
+    ) return null;
+    return value as CachedOnlineLicenseStatus;
+  } catch {
+    return null;
+  }
+}
+
+export async function saveOnlineLicenseStatus(value: CachedOnlineLicenseStatus): Promise<void> {
+  await mkdir(LICENSE_STATE_DIR, { recursive: true, mode: 0o700 });
+  const temporaryPath = `${ONLINE_STATUS_PATH}.${crypto.randomUUID()}.tmp`;
+  await writeFile(temporaryPath, JSON.stringify(value), { mode: 0o600, flag: "wx" });
+  await rename(temporaryPath, ONLINE_STATUS_PATH);
 }
 
 interface InstallationIdentity {

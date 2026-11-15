@@ -4396,6 +4396,19 @@ export async function updateLicenseIssuanceStatusDb(licenseId: string, status: "
   return result.rowCount > 0;
 }
 
+export async function getLicenseIssuanceForCheckDb(licenseId: string) {
+  const result = await getPool().query(
+    `SELECT license_id as "licenseId", installation_id as "installationId",
+       deployment_id as "deploymentId", licensee, status, certificate,
+       extract(epoch from expires_at)*1000 as "expiresAt"
+     FROM license_issuances WHERE license_id = $1`,
+    [licenseId],
+  );
+  const row = result.rows[0];
+  if (!row) return null;
+  return { ...row, expiresAt: row.expiresAt === null ? null : Number(row.expiresAt) };
+}
+
 // Start initialization without blocking server startup
 const initDbInBackground = async () => {
   try {

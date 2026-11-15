@@ -6,6 +6,8 @@ import {
   getInstallationId,
   getInstalledLicenseId,
   getPendingMigrationAt,
+  loadOnlineLicenseStatus,
+  saveOnlineLicenseStatus,
   clearPendingMigration,
   hasInstalledSignedLicense,
   loadInstalledCertificate,
@@ -94,6 +96,148 @@ function expirationResult(expiresAt: number | null, licensee: string): LicenseVa
  * @param host - The current server host/domain
  * @param licenseKey - The key entered by the user (if any)
  */
+const ONLINE_CHECK_INTERVAL_MS = 5 * 60 * 1000;
+
+function onlineCheckUrl(): string | null {
+  const configured = process.env.LICENSE_ISSUER_URL?.trim();
+  if (!configured) return null;
+  const url = new URL(configured);
+  if (
+    !["http:", "https:"].includes(url.protocol) ||
+    url.username || url.password || url.search || url.hash ||
+    (process.env.NODE_ENV === "production" && url.protocol !== "https:")
+  ) throw new Error("LICENSE_ISSUER_URL must be a valid HTTPS base URL in production.");
+  url.pathname = `${url.pathname.replace(/\/+$/u, "")}/api/license/check`;
+  return url.toString();
+}
+
+function onlineOutageResult(payload: NonNullable<ReturnType<typeof verifyLicenseCertificate>>, failureStartedAt: number, checkedAt: number, now = Date.now()): LicenseValidationResult {
+  const graceMs = gracePeriodDays() * 24 * 60 * 60 * 1000;
+  const expiryGraceEnd = payload.expiresAt === null ? Number.POSITIVE_INFINITY : payload.expiresAt + graceMs;
+  const graceEndsAt = Math.min(failureStartedAt + graceMs, expiryGraceEnd);
+  if (now < graceEndsAt) {
+    return {
+      valid: true,
+      mode: "grace",
+      message: `Unable to reach the license issuer. Last verified ${new Date(checkedAt).toLocaleDateString()}.`,
+      warning: `Reconnect to the license issuer within ${Math.max(0, Math.ceil((graceEndsAt - now) / (24 * 60 * 60 * 1000)))} days. Existing case and queue operations remain available.`,
+      licensee: payload.licensee,
+      licenseId: payload.licenseId,
+      installationId: payload.installationId,
+      expiresAt: payload.expiresAt,
+      host: payload.host,
+    };
+  }
+  return {
+    valid: false,
+    mode: "restricted",
+    message: "The license issuer has been unreachable beyond the allowed offline period.",
+    warning: "Reconnect to the license issuer to restore full access. Existing case and queue operations remain available.",
+    errorCode: "LICENSE_ONLINE_CHECK_REQUIRED",
+    licensee: payload.licensee,
+    licenseId: payload.licenseId,
+  };
+}
+
+function onlineStatusResult(status: string, licensee: string, licenseId: string): LicenseValidationResult | null {
+  if (status === "active") return null;
+  if (status === "expired") return null;
+  if (status === "revoked") return {
+    valid: false,
+    mode: "restricted",
+    message: "This license has been revoked. Contact the license issuer.",
+    errorCode: "LICENSE_REVOKED",
+    licensee,
+    licenseId,
+  };
+  if (status === "superseded") return {
+    valid: false,
+    mode: "restricted",
+    message: "This license has been replaced. Install the latest approved license.",
+    errorCode: "LICENSE_SUPERSEDED",
+    licensee,
+    licenseId,
+  };
+  return {
+    valid: false,
+    mode: "restricted",
+    message: "The issuer could not find this license. Contact the license issuer.",
+    errorCode: "LICENSE_NOT_FOUND",
+    licensee,
+    licenseId,
+  };
+}
+
+async function validateOnlineLicense(certificate: { payload: string; signature: string }, payload: NonNullable<ReturnType<typeof verifyLicenseCertificate>>): Promise<LicenseValidationResult | null> {
+  let url: string | null;
+  try {
+    url = onlineCheckUrl();
+  } catch (error) {
+    return {
+      valid: false,
+      mode: "restricted",
+      message: error instanceof Error ? error.message : "Online license configuration is invalid.",
+      errorCode: "LICENSE_ONLINE_CHECK_REQUIRED",
+      licensee: payload.licensee,
+      licenseId: payload.licenseId,
+    };
+  }
+  if (!url) return null;
+
+  const cached = await loadOnlineLicenseStatus();
+  if (cached?.licenseId === payload.licenseId && Date.now() - cached.lastAttemptAt < ONLINE_CHECK_INTERVAL_MS) {
+    return cached.status === "unavailable"
+      ? onlineOutageResult(payload, cached.failureStartedAt ?? cached.lastAttemptAt, cached.checkedAt)
+      : onlineStatusResult(cached.status, payload.licensee, payload.licenseId);
+  }
+
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ certificate }),
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!response.ok) throw new Error(`Issuer returned HTTP ${response.status}`);
+    const result = await response.json() as { status?: string; licenseId?: string; expiresAt?: number | null };
+    if (
+      !["active", "revoked", "superseded", "expired", "not_found"].includes(result.status ?? "") ||
+      result.licenseId !== payload.licenseId ||
+      !(result.expiresAt === null || (typeof result.expiresAt === "number" && Number.isFinite(result.expiresAt))) ||
+      (result.expiresAt === null ? payload.expiresAt !== null : payload.expiresAt === null || Math.abs(result.expiresAt - payload.expiresAt) > 1)
+    ) throw new Error("Issuer returned an invalid license status.");
+    const status = result.status as "active" | "revoked" | "superseded" | "expired" | "not_found";
+    const now = Date.now();
+    await saveOnlineLicenseStatus({ licenseId: payload.licenseId, status, checkedAt: now, lastAttemptAt: now, failureStartedAt: null, expiresAt: result.expiresAt ?? null });
+    return onlineStatusResult(status, payload.licensee, payload.licenseId);
+  } catch (error) {
+    console.warn("[License] Online status check failed:", error instanceof Error ? error.message : error);
+    if (cached?.licenseId === payload.licenseId && cached.status !== "active" && cached.status !== "unavailable") {
+      return onlineStatusResult(cached.status, payload.licensee, payload.licenseId);
+    }
+    const now = Date.now();
+    const failureStartedAt = cached?.licenseId === payload.licenseId
+      ? cached.status === "unavailable" && cached.failureStartedAt !== null
+        ? cached.failureStartedAt
+        : cached.status === "active"
+          ? cached.checkedAt
+          : payload.issuedAt
+      : payload.issuedAt;
+    const unavailable = {
+      licenseId: payload.licenseId,
+      status: "unavailable" as const,
+      checkedAt: cached?.licenseId === payload.licenseId ? cached.checkedAt : payload.issuedAt,
+      lastAttemptAt: now,
+      failureStartedAt,
+      expiresAt: payload.expiresAt,
+    };
+    await saveOnlineLicenseStatus(unavailable).catch((cacheError) => {
+      console.warn("[License] Could not persist online outage state:", cacheError);
+    });
+    return onlineOutageResult(payload, failureStartedAt, unavailable.checkedAt, now);
+  }
+}
+
 export async function validateLicense(host: string, licenseKey?: string): Promise<LicenseValidationResult> {
   let certificate;
   try {
@@ -129,6 +273,8 @@ export async function validateLicense(host: string, licenseKey?: string): Promis
       console.warn("[License] Could not clear completed migration state:", error);
     });
     const licenseInfo = { licenseId: payload.licenseId, installationId, expiresAt: payload.expiresAt, host };
+    const onlineResult = await validateOnlineLicense(certificate, payload);
+    if (onlineResult) return { ...onlineResult, ...licenseInfo };
     const expired = expirationResult(payload.expiresAt, payload.licensee);
     if (expired) return { ...expired, ...licenseInfo };
     return { valid: true, mode: "active", message: `Licensed to ${payload.licensee}`, licensee: payload.licensee, ...licenseInfo };

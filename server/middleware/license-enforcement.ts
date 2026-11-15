@@ -8,6 +8,7 @@ const PUBLIC_PATHS = new Set([
   "/readyz",
   "/license/status",
   "/license/validate",
+  "/license/check",
   "/license/activation-request",
   "/license/import",
   "/license/capabilities",

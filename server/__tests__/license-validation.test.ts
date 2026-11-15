@@ -8,6 +8,7 @@ vi.mock("../store/db", () => ({
   getLicenseByKeyDb: vi.fn(),
   getPrimaryLicenseDb: vi.fn(),
   updateLicenseHostDb: vi.fn(),
+  getLicenseIssuanceForCheckDb: vi.fn(),
 }));
 
 let stateDir: string;
@@ -34,6 +35,7 @@ beforeEach(async () => {
 afterEach(async () => {
   process.env = originalEnv;
   vi.resetModules();
+  vi.unstubAllGlobals();
   await rm(stateDir, { recursive: true, force: true });
 });
 
@@ -169,5 +171,51 @@ describe("local license validation", () => {
     await signedLicense.createActivationRequest("new.example.org");
     const resultAfterRequest = await service.validateLicense("new.example.org");
     expect(resultAfterRequest).toMatchObject({ valid: true, mode: "grace" });
+  });
+
+  it("restricts a signed license that the issuer has revoked", async () => {
+    await installLicense(null);
+    const certificate = await signedLicense.loadInstalledCertificate();
+    const payload = signedLicense.verifyLicenseCertificate(certificate)!;
+    process.env.LICENSE_ISSUER_URL = "https://issuer.example.org";
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ status: "revoked", licenseId: payload.licenseId, expiresAt: null }),
+    }));
+
+    const result = await service.validateLicense("subcity.example.org");
+
+    expect(result).toMatchObject({ valid: false, mode: "restricted", errorCode: "LICENSE_REVOKED" });
+  });
+
+  it("allows a temporary issuer outage during the online grace period", async () => {
+    await installLicense(null);
+    process.env.LICENSE_ISSUER_URL = "https://issuer.example.org";
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+
+    const result = await service.validateLicense("subcity.example.org");
+
+    expect(result).toMatchObject({ valid: true, mode: "grace" });
+    expect(result.warning).toContain("Reconnect to the license issuer");
+  });
+
+  it("restricts licenses after the online outage grace period expires", async () => {
+    await installLicense(null);
+    const certificate = await signedLicense.loadInstalledCertificate();
+    const payload = signedLicense.verifyLicenseCertificate(certificate)!;
+    await signedLicense.saveOnlineLicenseStatus({
+      licenseId: payload.licenseId,
+      status: "active",
+      checkedAt: Date.now() - 31 * 24 * 60 * 60 * 1000,
+      lastAttemptAt: Date.now() - 31 * 24 * 60 * 60 * 1000,
+      failureStartedAt: null,
+      expiresAt: null,
+    });
+    process.env.LICENSE_ISSUER_URL = "https://issuer.example.org";
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+
+    const result = await service.validateLicense("subcity.example.org");
+
+    expect(result).toMatchObject({ valid: false, mode: "restricted", errorCode: "LICENSE_ONLINE_CHECK_REQUIRED" });
   });
 });

@@ -1,8 +1,42 @@
 import { RequestHandler } from "express";
 import { ValidateLicenseRequest, ValidateLicenseResponse } from "@shared/api";
 import { recordLicenseValidationEvent, validateLicense } from "../services/license-service";
-import { createActivationRequest, getDeploymentId, getInstallationId, loadInstalledCertificate, saveInstalledCertificate, verifyLicenseCertificate } from "../services/signed-license";
+import { createActivationRequest, getDeploymentId, getInstallationId, isLicenseIssuerEnabled, loadInstalledCertificate, saveInstalledCertificate, verifyLicenseCertificate } from "../services/signed-license";
+import { getLicenseIssuanceForCheckDb } from "../store/db";
 import { getLicenseHost } from "../utils/license-host";
+
+export const onlineLicenseCheckHandler: RequestHandler = async (req, res) => {
+  if (!isLicenseIssuerEnabled()) {
+    return res.status(404).json({ status: "unavailable" });
+  }
+
+  const certificate = req.body?.certificate;
+  const payload = verifyLicenseCertificate(certificate);
+  if (!payload) return res.status(400).json({ status: "invalid" });
+
+  try {
+    const issuance = await getLicenseIssuanceForCheckDb(payload.licenseId);
+    if (
+      !issuance ||
+      issuance.installationId !== payload.installationId ||
+      issuance.deploymentId !== payload.deploymentId ||
+      issuance.licensee !== payload.licensee ||
+      (issuance.expiresAt === null ? payload.expiresAt !== null : payload.expiresAt === null || Math.abs(issuance.expiresAt - payload.expiresAt) > 1) ||
+      issuance.certificate?.payload !== certificate.payload ||
+      issuance.certificate?.signature !== certificate.signature
+    ) {
+      return res.json({ status: "not_found" });
+    }
+
+    const status = issuance.status === "active" && issuance.expiresAt !== null && Date.now() >= issuance.expiresAt
+      ? "expired"
+      : issuance.status;
+    res.json({ status, licenseId: payload.licenseId, licensee: payload.licensee, expiresAt: issuance.expiresAt });
+  } catch (error) {
+    console.error("[License] Online status lookup failed:", error);
+    res.status(503).json({ status: "unavailable" });
+  }
+};
 
 export const validateLicenseHandler: RequestHandler = async (req, res) => {
   try {

@@ -18,6 +18,9 @@ const LICENSE_ERROR_MESSAGES: Record<LicenseErrorCode, string> = {
   LICENSE_STORAGE_ERROR: "The license could not be saved. Contact your system administrator.",
   LICENSE_GRACE_RESTRICTED: "The license recovery period has ended. Existing records and queue operations remain available; contact the license issuer.",
   LICENSE_CERTIFICATE_ROLLBACK: "This file is older than the current license and cannot replace it. Request the latest approved license file.",
+  LICENSE_REVOKED: "This license has been revoked. Contact the license issuer.",
+  LICENSE_SUPERSEDED: "This license has been replaced. Install the latest approved license.",
+  LICENSE_ONLINE_CHECK_REQUIRED: "Reconnect this server to the configured license issuer to restore full access.",
 };
 
 /**
