@@ -152,7 +152,8 @@ export function createServer() {
           if (
             allowedEnv.includes(u.origin) ||
             allowedEnv.includes(u.host) ||
-            allowedEnv.includes(u.hostname)
+            allowedEnv.includes(u.hostname) ||
+            (process.env.NODE_ENV !== "production" && u.hostname.endsWith(".builderio.dev"))
           )
             return callback(null, true);
         } catch {}
