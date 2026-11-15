@@ -7,6 +7,8 @@ interface LicenseState {
   isValid: boolean | null;
   message: string;
   licensee?: string;
+  mode?: "active" | "grace" | "restricted";
+  warning?: string;
 }
 
 /**
@@ -43,6 +45,8 @@ export function useLicense(): LicenseState {
           isLoading: false,
           isValid: false,
           message,
+          mode: errorData.mode,
+          warning: errorData.warning,
         });
         return;
       }
@@ -58,6 +62,8 @@ export function useLicense(): LicenseState {
         isValid: !!data.valid,
         message: displayMessage,
         licensee: data.licensee,
+        mode: data.mode,
+        warning: data.warning,
       });
     } catch (error) {
       console.error("[License] Status check failed:", error);

@@ -1,6 +1,8 @@
 import crypto from "crypto";
 import { RequestHandler } from "express";
 import { ValidateLicenseResponse } from "@shared/api";
+import { createLicenseCertificate, isActivationRequest, isLicenseIssuerEnabled } from "../services/signed-license";
+import { createLicenseIssuanceDb, listLicenseIssuancesDb, updateLicenseIssuanceStatusDb } from "../store/db";
 import {
   createLicenseDb,
   getLicenseKeyDb,
@@ -12,6 +14,13 @@ import {
 
 const LICENSE_UNLOCK_TTL_MS = 15 * 60 * 1000;
 const LICENSE_UNLOCK_HEADER = "x-licenses-unlock";
+
+export const licenseCapabilitiesHandler: RequestHandler = (_req, res) => {
+  res.json({
+    issuerEnabled: isLicenseIssuerEnabled(),
+    legacyIssuanceEnabled: isLicenseIssuerEnabled() && process.env.LICENSE_LEGACY_ISSUANCE_ENABLED === "true",
+  });
+};
 
 function unlockSigningSecret(): string {
   const secret = process.env.APP_SECRET || process.env.AUTH_SECRET;
@@ -90,6 +99,77 @@ interface CreateLicenseRequest {
   notes?: unknown;
 }
 
+export const createSignedLicenseHandler: RequestHandler = async (req, res) => {
+  try {
+    const { activationRequest, licensee: rawLicensee, expiresAt: rawExpiresAt, notes: rawNotes, supersedesLicenseId: rawSupersedes, migrationReason: rawReason } = req.body ?? {};
+    if (!isActivationRequest(activationRequest)) {
+      return res.status(400).json({ success: false, message: "Upload a valid STC activation request." });
+    }
+    const licensee = typeof rawLicensee === "string" ? rawLicensee.trim() : "";
+    const notes = typeof rawNotes === "string" ? rawNotes.trim() : "";
+    const migrationReason = typeof rawReason === "string" ? rawReason.trim() : "";
+    const supersedesLicenseId = typeof rawSupersedes === "string" && rawSupersedes.trim() ? rawSupersedes.trim() : null;
+    const expiresAt = rawExpiresAt === null || rawExpiresAt === undefined || rawExpiresAt === "" ? null : rawExpiresAt;
+    if (!licensee || licensee.length > 200 || notes.length > 1000 || migrationReason.length > 500) {
+      return res.status(400).json({ success: false, message: "Enter a valid licensee and keep notes within the allowed length." });
+    }
+    if (supersedesLicenseId && !migrationReason) {
+      return res.status(400).json({ success: false, message: "Enter the reason for replacing or reissuing this license." });
+    }
+    if (expiresAt !== null && (typeof expiresAt !== "number" || !Number.isSafeInteger(expiresAt) || expiresAt <= Date.now())) {
+      return res.status(400).json({ success: false, message: "Expiration must be a future date." });
+    }
+    const certificate = createLicenseCertificate({
+      installationId: activationRequest.installationId,
+      deploymentId: activationRequest.deploymentId,
+      host: activationRequest.host,
+      licensee,
+      expiresAt: expiresAt as number | null,
+      supersedesLicenseId,
+    });
+    const payload = JSON.parse(Buffer.from(certificate.payload, "base64url").toString("utf8"));
+    await createLicenseIssuanceDb({
+      licenseId: payload.licenseId,
+      installationId: activationRequest.installationId,
+      deploymentId: activationRequest.deploymentId,
+      licensee,
+      certificate,
+      expiresAt: payload.expiresAt,
+      createdByUserId: (req as any).auth?.id ?? null,
+      notes: notes || null,
+      supersedesLicenseId,
+      migrationReason: migrationReason || null,
+    });
+    res.status(201).json({ success: true, certificate, license: payload });
+  } catch (error) {
+    console.error("[License Management] Signed license issue error:", error);
+    const message = error instanceof Error && error.message.includes("active license")
+      ? error.message
+      : "Failed to issue signed license.";
+    res.status(400).json({ success: false, message });
+  }
+};
+
+export const listSignedLicensesHandler: RequestHandler = async (_req, res) => {
+  try {
+    res.json({ licenses: await listLicenseIssuancesDb() });
+  } catch (error) {
+    console.error("[License Management] Signed license list error:", error);
+    res.status(500).json({ success: false, message: "Failed to load issued licenses." });
+  }
+};
+
+export const revokeSignedLicenseHandler: RequestHandler = async (req, res) => {
+  try {
+    const revoked = await updateLicenseIssuanceStatusDb(req.params.licenseId, "revoked");
+    if (!revoked) return res.status(404).json({ success: false, message: "Issued license not found." });
+    res.json({ success: true, message: "License marked revoked in issuer records. Offline installations require a replacement or update to receive revocation." });
+  } catch (error) {
+    console.error("[License Management] Signed license revocation error:", error);
+    res.status(500).json({ success: false, message: "Failed to revoke issued license." });
+  }
+};
+
 interface CreateLicenseResponse {
   success: boolean;
   message: string;
@@ -119,6 +199,9 @@ interface DeleteLicenseResponse {
  * Create a new license
  */
 export const createLicenseHandler: RequestHandler = async (req, res) => {
+  if (process.env.LICENSE_LEGACY_ISSUANCE_ENABLED !== "true") {
+    return res.status(404).json({ success: false, message: "Unsigned legacy license generation is disabled." });
+  }
   try {
     const body = (req.body ?? {}) as CreateLicenseRequest;
     const licensee = typeof body.licensee === "string" ? body.licensee.trim() : "";

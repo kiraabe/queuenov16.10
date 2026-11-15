@@ -12,7 +12,11 @@ const LICENSE_ERROR_MESSAGES: Record<LicenseErrorCode, string> = {
   LICENSE_INVALID_STATUS: "This license is not active. Please contact support.",
   LICENSE_EXPIRED: "This license has expired. Please renew to continue using the application.",
   LICENSE_HOST_MISMATCH: "This license is bound to a different server. Please contact support.",
-  LICENSE_DB_ERROR: "Unable to verify license. Please try again.",
+  LICENSE_DB_ERROR: "Unable to verify this legacy license. Restore its database record or import a signed license.",
+  LICENSE_CERTIFICATE_INVALID: "The license file is invalid or signed by an untrusted key. Contact the license issuer.",
+  LICENSE_IDENTITY_MISMATCH: "This license belongs to a different installation. Request an approved reactivation.",
+  LICENSE_STORAGE_ERROR: "The license could not be saved. Contact your system administrator.",
+  LICENSE_GRACE_RESTRICTED: "The license recovery period has ended. Existing records and queue operations remain available; contact the license issuer.",
 };
 
 /**

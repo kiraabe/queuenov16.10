@@ -8,6 +8,9 @@ const PUBLIC_PATHS = new Set([
   "/readyz",
   "/license/status",
   "/license/validate",
+  "/license/activation-request",
+  "/license/import",
+  "/license/capabilities",
 ]);
 
 export const enforceLicense: RequestHandler = async (req, res, next) => {
@@ -23,6 +26,17 @@ export const enforceLicense: RequestHandler = async (req, res, next) => {
 
   try {
     const result = await validateLicense(host);
+    if (result.mode === "restricted") {
+      if (req.path === "/admin/license-info") return next();
+      if (req.path === "/admin" || req.path.startsWith("/admin/")) {
+        return res.status(403).json({
+          error: "License recovery is required for administrative operations.",
+          message: result.message,
+          code: "LICENSE_GRACE_RESTRICTED",
+        });
+      }
+      return next();
+    }
     if (!result.valid) {
       return res.status(403).json({
         error: "A valid license is required to use this service.",

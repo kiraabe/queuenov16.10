@@ -6,12 +6,16 @@ import { AlertCircle } from "lucide-react";
 interface LicenseLockedScreenProps {
   message: string;
   onLicenseSubmit: (licenseKey: string) => void;
+  onLicenseFileSubmit: (certificate: unknown) => void;
+  onDownloadActivationRequest: () => void;
   isValidating?: boolean;
 }
 
 export function LicenseLockedScreen({
   message,
   onLicenseSubmit,
+  onLicenseFileSubmit,
+  onDownloadActivationRequest,
   isValidating = false,
 }: LicenseLockedScreenProps) {
   const [licenseKey, setLicenseKey] = useState("");
@@ -46,7 +50,29 @@ export function LicenseLockedScreen({
             <p className="text-sm text-red-700">{message}</p>
           </div>
 
-          {/* License Key Input */}
+          <div className="mb-6 space-y-3">
+            <p className="text-sm text-slate-600">For a new installation, download an activation request and send it to your STC license issuer. Upload the approved license file here.</p>
+            <Button type="button" variant="outline" className="w-full" onClick={onDownloadActivationRequest} disabled={isValidating}>
+              Download Activation Request
+            </Button>
+            <Input
+              type="file"
+              accept="application/json,.json"
+              aria-label="Upload signed STC license file"
+              disabled={isValidating}
+              onChange={async (event) => {
+                const file = event.target.files?.[0];
+                if (!file) return;
+                try {
+                  onLicenseFileSubmit(JSON.parse(await file.text()));
+                } catch {
+                  onLicenseFileSubmit(null);
+                }
+                event.target.value = "";
+              }}
+            />
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label htmlFor="license-key" className="block text-sm font-medium text-slate-700 mb-2">

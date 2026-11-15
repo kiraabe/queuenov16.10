@@ -1263,6 +1263,27 @@ export async function initDb() {
       `ALTER TABLE licenses ADD COLUMN IF NOT EXISTS notes_encrypted text;`,
     ).catch(() => {}); // ignore if already exists
     await p.query(`ALTER TABLE licenses ALTER COLUMN licensee DROP NOT NULL;`);
+    await p.query(`CREATE TABLE IF NOT EXISTS license_issuances (
+      license_id uuid primary key,
+      installation_id text not null,
+      deployment_id text,
+      previous_installation_id text,
+      previous_deployment_id text,
+      licensee text not null,
+      status text not null default 'active' check (status in ('active', 'superseded', 'revoked')),
+      certificate jsonb not null,
+      expires_at timestamptz,
+      created_at timestamptz not null default now(),
+      approved_at timestamptz not null default now(),
+      created_by_user_id uuid references users(id) on delete set null,
+      notes text,
+      supersedes_license_id uuid,
+      migration_reason text
+    );`);
+    await p.query(`ALTER TABLE license_issuances ADD COLUMN IF NOT EXISTS deployment_id text;`);
+    await p.query(`ALTER TABLE license_issuances ADD COLUMN IF NOT EXISTS previous_deployment_id text;`);
+    await p.query(`CREATE INDEX IF NOT EXISTS idx_license_issuances_installation ON license_issuances(installation_id);`);
+    await p.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_license_issuances_active_deployment ON license_issuances(deployment_id) WHERE status = 'active' AND deployment_id IS NOT NULL;`);
 
     const legacyLicenses = await p.query(
       `SELECT id, licensee, notes, licensee_encrypted, notes_encrypted
@@ -1286,6 +1307,20 @@ export async function initDb() {
             license.notes_encrypted ?? encryptField(license.notes),
           ],
         );
+      }
+    }
+
+    const unhashedLicenses = await p.query(
+      `SELECT id, license_key FROM licenses WHERE license_key_hash IS NULL`,
+    );
+    if (unhashedLicenses.rows.length) {
+      const { decryptField } = await import("../services/encryption");
+      const crypto = await import("crypto");
+      for (const license of unhashedLicenses.rows) {
+        const licenseKey = decryptField(license.license_key);
+        if (!licenseKey) continue;
+        const licenseKeyHash = crypto.createHash("sha256").update(licenseKey).digest("hex");
+        await p.query(`UPDATE licenses SET license_key_hash = $2 WHERE id = $1 AND license_key_hash IS NULL`, [license.id, licenseKeyHash]);
       }
     }
 
@@ -4212,6 +4247,114 @@ export async function deleteLicenseDb(licenseId: string): Promise<boolean> {
     [licenseId],
   );
   return res.rowCount > 0;
+}
+
+export interface LicenseIssuanceRecord {
+  licenseId: string;
+  installationId: string;
+  deploymentId: string;
+  previousInstallationId: string | null;
+  previousDeploymentId: string | null;
+  licensee: string;
+  status: "active" | "superseded" | "revoked";
+  certificate: unknown;
+  expiresAt: number | null;
+  createdAt: number;
+  createdByUserId: string | null;
+  notes: string | null;
+  supersedesLicenseId: string | null;
+  migrationReason: string | null;
+}
+
+export async function createLicenseIssuanceDb(input: {
+  licenseId: string;
+  installationId: string;
+  deploymentId: string;
+  licensee: string;
+  certificate: unknown;
+  expiresAt: number | null;
+  createdByUserId: string | null;
+  notes: string | null;
+  supersedesLicenseId: string | null;
+  migrationReason: string | null;
+}): Promise<void> {
+  const client = await getPool().connect();
+  try {
+    await client.query("BEGIN");
+    let previousInstallationId: string | null = null;
+    let previousDeploymentId: string | null = null;
+    if (input.supersedesLicenseId) {
+      const previous = await client.query(
+        `SELECT installation_id, deployment_id, licensee FROM license_issuances WHERE license_id = $1 AND status = 'active' FOR UPDATE`,
+        [input.supersedesLicenseId],
+      );
+      if (!previous.rows[0] || previous.rows[0].licensee !== input.licensee) {
+        throw new Error("The referenced active license was not found for this licensee.");
+      }
+      previousInstallationId = previous.rows[0].installation_id;
+      previousDeploymentId = previous.rows[0].deployment_id;
+      await client.query(
+        `UPDATE license_issuances SET status = 'superseded' WHERE license_id = $1`,
+        [input.supersedesLicenseId],
+      );
+    } else {
+      const active = await client.query(
+        `SELECT license_id FROM license_issuances WHERE deployment_id = $1 AND status = 'active' FOR UPDATE`,
+        [input.deploymentId],
+      );
+      if (active.rows.length) throw new Error("This deployment already has an active license; include its ID to renew or migrate it.");
+    }
+
+    await client.query(
+      `INSERT INTO license_issuances (
+        license_id, installation_id, deployment_id, previous_installation_id,
+        previous_deployment_id, licensee, certificate, expires_at, created_by_user_id,
+        notes, supersedes_license_id, migration_reason
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, to_timestamp($8), $9, $10, $11, $12)`,
+      [
+        input.licenseId,
+        input.installationId,
+        input.deploymentId,
+        previousInstallationId,
+        previousDeploymentId,
+        input.licensee,
+        JSON.stringify(input.certificate),
+        input.expiresAt ? input.expiresAt / 1000 : null,
+        input.createdByUserId,
+        input.notes,
+        input.supersedesLicenseId,
+        input.migrationReason,
+      ],
+    );
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function listLicenseIssuancesDb(): Promise<LicenseIssuanceRecord[]> {
+  const result = await getPool().query(
+    `SELECT license_id as "licenseId", installation_id as "installationId",
+      deployment_id as "deploymentId", previous_installation_id as "previousInstallationId",
+      previous_deployment_id as "previousDeploymentId", licensee, status, certificate,
+      extract(epoch from expires_at)*1000 as "expiresAt",
+      extract(epoch from created_at)*1000 as "createdAt",
+      created_by_user_id as "createdByUserId", notes,
+      supersedes_license_id as "supersedesLicenseId", migration_reason as "migrationReason"
+     FROM license_issuances ORDER BY created_at DESC`,
+  );
+  return result.rows;
+}
+
+export async function updateLicenseIssuanceStatusDb(licenseId: string, status: "revoked" | "active"): Promise<boolean> {
+  const result = await getPool().query(
+    `UPDATE license_issuances SET status = $2 WHERE license_id = $1`,
+    [licenseId, status],
+  );
+  return result.rowCount > 0;
 }
 
 // Start initialization without blocking server startup

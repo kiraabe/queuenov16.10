@@ -1,6 +1,7 @@
 import { RequestHandler } from "express";
 import { ValidateLicenseRequest, ValidateLicenseResponse } from "@shared/api";
 import { validateLicense } from "../services/license-service";
+import { createActivationRequest, getDeploymentId, getInstallationId, loadInstalledCertificate, saveInstalledCertificate, verifyLicenseCertificate } from "../services/signed-license";
 import { getLicenseHost } from "../utils/license-host";
 
 export const validateLicenseHandler: RequestHandler = async (req, res) => {
@@ -29,7 +30,9 @@ export const validateLicenseHandler: RequestHandler = async (req, res) => {
       valid: result.valid,
       message: result.message,
       errorCode: result.errorCode,
-      licensee: result.valid ? result.licensee : undefined,
+      licensee: result.licensee,
+      mode: result.mode,
+      warning: result.warning,
     };
 
     res.json(response);
@@ -39,6 +42,62 @@ export const validateLicenseHandler: RequestHandler = async (req, res) => {
       valid: false,
       message: "License validation failed",
     });
+  }
+};
+
+export const createActivationRequestHandler: RequestHandler = async (req, res) => {
+  try {
+    const host = getLicenseHost(req);
+    if (!host) return res.status(503).json({ success: false, message: "The licensed server hostname is not configured." });
+    const activationRequest = await createActivationRequest(host);
+    res.json({ success: true, activationRequest });
+  } catch (error) {
+    console.error("[License] Activation request creation failed:", error);
+    res.status(500).json({ success: false, message: "Unable to create an activation request. Check persistent license storage." });
+  }
+};
+
+export const importLicenseCertificateHandler: RequestHandler = async (req, res) => {
+  try {
+    const certificate = req.body?.certificate;
+    const payload = verifyLicenseCertificate(certificate);
+    if (!payload) return res.status(400).json({ valid: false, message: "The license file is invalid or signed by an untrusted key.", errorCode: "LICENSE_CERTIFICATE_INVALID" });
+    const host = getLicenseHost(req);
+    if (!host) return res.status(503).json({ valid: false, message: "The licensed server hostname is not configured.", errorCode: "LICENSE_HOST_CONFIG_MISSING" });
+    const installationId = await getInstallationId();
+    if (payload.installationId !== installationId || payload.deploymentId !== (await getDeploymentId())) {
+      return res.status(400).json({ valid: false, message: "This license was issued for a different STC installation.", errorCode: "LICENSE_IDENTITY_MISMATCH" });
+    }
+    if (payload.host !== host) return res.status(400).json({ valid: false, message: "This license was issued for a different domain. Request an approved replacement.", errorCode: "LICENSE_HOST_MISMATCH" });
+    if (payload.expiresAt && Date.now() >= payload.expiresAt) return res.status(400).json({ valid: false, message: "This license has expired. Request a renewed license.", errorCode: "LICENSE_EXPIRED" });
+    await saveInstalledCertificate(certificate);
+    res.json({ valid: true, message: `Licensed to ${payload.licensee}`, licensee: payload.licensee, mode: "active" });
+  } catch (error) {
+    console.error("[License] License file import failed:", error);
+    res.status(500).json({ valid: false, message: "Unable to save the license file. Check persistent license storage.", errorCode: "LICENSE_STORAGE_ERROR" });
+  }
+};
+
+export const getLocalLicenseInfoHandler: RequestHandler = async (req, res) => {
+  try {
+    const host = getLicenseHost(req);
+    if (!host) return res.status(503).json({ success: false, message: "The licensed server hostname is not configured." });
+    const [result, installationId, certificate] = await Promise.all([
+      validateLicense(host),
+      getInstallationId(),
+      loadInstalledCertificate(),
+    ]);
+    const payload = certificate ? verifyLicenseCertificate(certificate) : null;
+    res.json({
+      ...result,
+      host,
+      installationId,
+      licenseId: payload?.licenseId ?? result.licenseId,
+      expiresAt: payload?.expiresAt ?? result.expiresAt ?? null,
+    });
+  } catch (error) {
+    console.error("[License] Admin license information check failed:", error);
+    res.status(500).json({ success: false, message: "License information is unavailable." });
   }
 };
 
@@ -58,7 +117,9 @@ export const checkLicenseStatusHandler: RequestHandler = async (req, res) => {
       valid: result.valid,
       message: result.message,
       errorCode: result.errorCode,
-      licensee: result.valid ? result.licensee : undefined,
+      licensee: result.licensee,
+      mode: result.mode,
+      warning: result.warning,
     };
 
     res.json(response);

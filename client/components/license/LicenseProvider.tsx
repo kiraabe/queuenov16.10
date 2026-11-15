@@ -16,6 +16,45 @@ export function LicenseProvider({ children }: LicenseProviderProps) {
   const [isSubmittingLicense, setIsSubmittingLicense] = useState(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
 
+  const handleLicenseFileSubmit = async (certificate: unknown) => {
+    setIsSubmittingLicense(true);
+    setSubmissionError(null);
+    try {
+      const response = await fetch("/api/license/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Requested-With": "XMLHttpRequest" },
+        body: JSON.stringify({ certificate }),
+      });
+      const data = await response.json();
+      if (response.ok && data.valid) {
+        window.location.reload();
+        return;
+      }
+      setSubmissionError(getLicenseErrorMessage(data.errorCode, data.message));
+    } catch {
+      setSubmissionError("Unable to import the license file. Check the file and try again.");
+    } finally {
+      setIsSubmittingLicense(false);
+    }
+  };
+
+  const handleDownloadActivationRequest = async () => {
+    try {
+      const response = await fetch("/api/license/activation-request", { headers: { "X-Requested-With": "XMLHttpRequest" } });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Unable to create an activation request.");
+      const blob = new Blob([JSON.stringify(data.activationRequest, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "stc-activation-request.json";
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      setSubmissionError(error instanceof Error ? error.message : "Unable to create an activation request.");
+    }
+  };
+
   const handleLicenseSubmit = async (licenseKey: string) => {
     setIsSubmittingLicense(true);
     setSubmissionError(null);
@@ -58,9 +97,17 @@ export function LicenseProvider({ children }: LicenseProviderProps) {
     );
   }
 
-  // Only render app if license is explicitly valid
-  if (licenseState.isValid === true) {
-    return <>{children}</>;
+  if (licenseState.isValid === true || licenseState.mode === "restricted") {
+    return (
+      <>
+        {licenseState.warning && (
+          <div role="alert" className="border-b border-amber-300 bg-amber-50 px-4 py-2 text-center text-sm text-amber-900">
+            {licenseState.message} {licenseState.warning}
+          </div>
+        )}
+        {children}
+      </>
+    );
   }
 
   // Show locked screen for any other state (null, false, undefined)
@@ -68,6 +115,8 @@ export function LicenseProvider({ children }: LicenseProviderProps) {
     <LicenseLockedScreen
       message={submissionError || licenseState.message}
       onLicenseSubmit={handleLicenseSubmit}
+      onLicenseFileSubmit={handleLicenseFileSubmit}
+      onDownloadActivationRequest={handleDownloadActivationRequest}
       isValidating={isSubmittingLicense}
     />
   );

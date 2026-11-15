@@ -4,7 +4,7 @@ import cors from "cors";
 import helmet from "helmet";
 import { getPool } from "./store/db";
 import { handleDemo } from "./routes/demo";
-import { validateLicenseHandler, checkLicenseStatusHandler } from "./routes/license";
+import { validateLicenseHandler, checkLicenseStatusHandler, createActivationRequestHandler, importLicenseCertificateHandler, getLocalLicenseInfoHandler } from "./routes/license";
 import {
   createLicenseHandler,
   listLicensesHandler,
@@ -13,6 +13,10 @@ import {
   deleteLicenseHandler,
   verifyLicensesPinHandler,
   requireLicensesUnlock,
+  licenseCapabilitiesHandler,
+  createSignedLicenseHandler,
+  listSignedLicensesHandler,
+  revokeSignedLicenseHandler,
 } from "./routes/license-management";
 import {
   clearDemo,
@@ -69,6 +73,7 @@ import { cleanupAllStaleSessions } from "./store/sessions";
 import { autoCancelExpiredHolds, DB_CONFIG } from "./store/db";
 import { dbRateLimitMiddleware, strictDbRateLimitMiddleware, extractUserIdMiddleware } from "./middleware/db-rate-limit";
 import { enforceLicense } from "./middleware/license-enforcement";
+import { requireLicenseIssuer } from "./middleware/license-issuer";
 import { getRateLimitStatus, resetUserRateLimit, clearAllRateLimits } from "./services/query-rate-limiter";
 import { tellerStats, tellerTickets } from "./routes/teller";
 import {
@@ -301,6 +306,10 @@ export function createServer() {
   app.get("/api/demo", handleDemo);
   app.get("/api/license/status", checkLicenseStatusHandler);
   app.post("/api/license/validate", validateLicenseHandler);
+  app.get("/api/license/activation-request", createActivationRequestHandler);
+  app.post("/api/license/import", importLicenseCertificateHandler);
+  app.get("/api/license/capabilities", licenseCapabilitiesHandler);
+  app.get("/api/admin/license-info", requireRole(["admin"]), getLocalLicenseInfoHandler);
 
   // Auth API
   app.post("/api/auth/login", login);
@@ -534,35 +543,62 @@ export function createServer() {
   // License management endpoints
   app.post(
     "/api/admin/licenses/verify-pin",
+    requireLicenseIssuer,
     requireRole(["admin"]),
     verifyLicensesPinHandler,
   );
   app.post(
+    "/api/admin/licenses/issue",
+    requireLicenseIssuer,
+    requireRole(["admin"]),
+    requireLicensesUnlock,
+    createSignedLicenseHandler,
+  );
+  app.get(
+    "/api/admin/licenses/issued",
+    requireLicenseIssuer,
+    requireRole(["admin"]),
+    requireLicensesUnlock,
+    listSignedLicensesHandler,
+  );
+  app.put(
+    "/api/admin/licenses/issued/:licenseId/revoke",
+    requireLicenseIssuer,
+    requireRole(["admin"]),
+    requireLicensesUnlock,
+    revokeSignedLicenseHandler,
+  );
+  app.post(
     "/api/admin/licenses",
+    requireLicenseIssuer,
     requireRole(["admin"]),
     requireLicensesUnlock,
     createLicenseHandler,
   );
   app.get(
     "/api/admin/licenses",
+    requireLicenseIssuer,
     requireRole(["admin"]),
     requireLicensesUnlock,
     listLicensesHandler,
   );
   app.get(
     "/api/admin/licenses/:licenseId/key",
+    requireLicenseIssuer,
     requireRole(["admin"]),
     requireLicensesUnlock,
     getLicenseKeyHandler,
   );
   app.put(
     "/api/admin/licenses/:licenseId/status",
+    requireLicenseIssuer,
     requireRole(["admin"]),
     requireLicensesUnlock,
     updateLicenseStatusHandler,
   );
   app.delete(
     "/api/admin/licenses/:licenseId",
+    requireLicenseIssuer,
     requireRole(["admin"]),
     requireLicensesUnlock,
     deleteLicenseHandler,

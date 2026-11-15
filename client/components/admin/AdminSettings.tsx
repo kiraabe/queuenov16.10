@@ -13,6 +13,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, Clock, Gauge, Save, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import LicenseManagement from "./LicenseManagement";
+import LocalLicenseStatus from "./LocalLicenseStatus";
 import PINLock from "./PINLock";
 import { SettingRow, SettingsSection } from "./settings/SettingsSection";
 import type {
@@ -27,6 +28,18 @@ export default function AdminSettings() {
   const [activeTab, setActiveTab] = useState("queue");
   const [licensesUnlockToken, setLicensesUnlockToken] = useState<string | null>(null);
   const [showPINLock, setShowPINLock] = useState(false);
+  const [licenseIssuerEnabled, setLicenseIssuerEnabled] = useState(false);
+  const [legacyIssuanceEnabled, setLegacyIssuanceEnabled] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/license/capabilities")
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => {
+        setLicenseIssuerEnabled(data?.issuerEnabled === true);
+        setLegacyIssuanceEnabled(data?.legacyIssuanceEnabled === true);
+      })
+      .catch(() => setLicenseIssuerEnabled(false));
+  }, []);
 
   // Queue Settings
   const [queueSettings, setQueueSettings] = useState({
@@ -99,6 +112,7 @@ export default function AdminSettings() {
   };
 
   const handleTabChange = (value: string) => {
+    if (value === "licenses" && !licenseIssuerEnabled) return;
     if (value === "licenses" && !licensesUnlockToken) {
       setShowPINLock(true);
     } else if (value !== "licenses" && licensesUnlockToken) {
@@ -126,6 +140,7 @@ export default function AdminSettings() {
 
   return (
     <div className="space-y-4">
+      <LocalLicenseStatus />
       <PINLock
         open={showPINLock}
         onUnlock={handlePINUnlock}
@@ -133,9 +148,9 @@ export default function AdminSettings() {
       />
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className={`grid w-full ${licenseIssuerEnabled ? "grid-cols-2" : "grid-cols-1"}`}>
           <TabsTrigger value="queue">Queue Configuration</TabsTrigger>
-          <TabsTrigger value="licenses">Licenses</TabsTrigger>
+          {licenseIssuerEnabled && <TabsTrigger value="licenses">Licenses</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="queue" className="space-y-6">
@@ -251,11 +266,11 @@ export default function AdminSettings() {
           </div>
         </TabsContent>
 
-        <TabsContent value="licenses" className="space-y-4">
+        {licenseIssuerEnabled && <TabsContent value="licenses" className="space-y-4">
           {licensesUnlockToken && (
-            <LicenseManagement unlockToken={licensesUnlockToken} />
+            <LicenseManagement unlockToken={licensesUnlockToken} legacyIssuanceEnabled={legacyIssuanceEnabled} />
           )}
-        </TabsContent>
+        </TabsContent>}
       </Tabs>
     </div>
   );

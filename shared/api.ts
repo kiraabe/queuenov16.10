@@ -505,13 +505,23 @@ export type LicenseErrorCode =
   | "LICENSE_INVALID_STATUS"
   | "LICENSE_EXPIRED"
   | "LICENSE_HOST_MISMATCH"
-  | "LICENSE_DB_ERROR";
+  | "LICENSE_DB_ERROR"
+  | "LICENSE_CERTIFICATE_INVALID"
+  | "LICENSE_IDENTITY_MISMATCH"
+  | "LICENSE_STORAGE_ERROR"
+  | "LICENSE_GRACE_RESTRICTED";
 
 export interface ValidateLicenseResponse {
   valid: boolean;
   message: string;
   errorCode?: LicenseErrorCode;
   licensee?: string;
+  mode?: "active" | "grace" | "restricted";
+  warning?: string;
+  licenseId?: string;
+  installationId?: string;
+  expiresAt?: number | null;
+  host?: string;
 }
 
 export interface LicenseConfig {

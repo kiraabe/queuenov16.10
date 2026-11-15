@@ -38,13 +38,14 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Plus, Trash2, Lock, AlertCircle, Copy } from "lucide-react";
 import { toast } from "sonner";
+import SignedLicenseIssuance from "./SignedLicenseIssuance";
 import type {
   ListLicensesResponse,
   CreateLicenseResponse,
   LicenseRecord,
 } from "@shared/api";
 
-export default function LicenseManagement({ unlockToken }: { unlockToken: string }) {
+export default function LicenseManagement({ unlockToken, legacyIssuanceEnabled }: { unlockToken: string; legacyIssuanceEnabled: boolean }) {
   const [licenses, setLicenses] = useState<LicenseRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -383,8 +384,9 @@ For technical support or issues with license activation:
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6">
+      <SignedLicenseIssuance unlockToken={unlockToken} />
+      {legacyIssuanceEnabled && <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold">License Management</h2>
           <p className="text-sm text-muted-foreground mt-1">
@@ -478,9 +480,9 @@ For technical support or issues with license activation:
             </form>
           </DialogContent>
         </Dialog>
-      </div>
+      </div>}
 
-      {isLoading ? (
+      {legacyIssuanceEnabled && (isLoading ? (
         <Card>
           <CardContent className="pt-6">
             <div className="flex justify-center items-center h-40">
@@ -674,7 +676,7 @@ For technical support or issues with license activation:
             )}
           </CardContent>
         </Card>
-      )}
+      ))}
     </div>
   );
 }
