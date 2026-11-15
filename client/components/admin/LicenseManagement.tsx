@@ -482,7 +482,7 @@ For technical support or issues with license activation:
         </Dialog>
       </div>}
 
-      {legacyIssuanceEnabled && (isLoading ? (
+      {isLoading ? (
         <Card>
           <CardContent className="pt-6">
             <div className="flex justify-center items-center h-40">
@@ -496,8 +496,7 @@ For technical support or issues with license activation:
             <Alert>
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                No licenses created yet. Click "Create License" to add the first
-                one.
+                {legacyIssuanceEnabled ? "No legacy licenses created yet. Use Create License only for an approved legacy migration." : "No legacy license records are stored in this issuer environment yet."}
               </AlertDescription>
             </Alert>
           </CardContent>
@@ -546,6 +545,7 @@ For technical support or issues with license activation:
                       </TableCell>
                       <TableCell>
                         {license.licensee}
+                        <div className="break-all font-mono text-xs text-muted-foreground">{license.id}</div>
                       </TableCell>
                       <TableCell className="max-w-[240px] truncate" title={license.notes ?? undefined}>
                         {license.notes || "—"}
@@ -676,7 +676,7 @@ For technical support or issues with license activation:
             )}
           </CardContent>
         </Card>
-      ))}
+      )}
     </div>
   );
 }

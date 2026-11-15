@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 export interface ActivationRequest {
@@ -50,9 +50,15 @@ function trustedPublicKey(keyId: string): crypto.KeyObject | null {
 }
 
 export function isLicenseIssuerEnabled(): boolean {
-  return process.env.LICENSE_ISSUER_ENABLED === "true" &&
-    Boolean(process.env.LICENSE_SIGNING_KEY_ID?.trim()) &&
-    Boolean(process.env.LICENSE_SIGNING_PRIVATE_KEY?.trim());
+  if (process.env.LICENSE_ISSUER_ENABLED !== "true" || !process.env.LICENSE_SIGNING_KEY_ID?.trim() || !process.env.LICENSE_SIGNING_PRIVATE_KEY?.trim()) return false;
+  try {
+    const message = Buffer.from("STC issuer key configuration check");
+    const signature = crypto.sign(null, message, signingPrivateKey());
+    const publicKey = trustedPublicKey(process.env.LICENSE_SIGNING_KEY_ID.trim());
+    return Boolean(publicKey && crypto.verify(null, message, publicKey, signature));
+  } catch {
+    return false;
+  }
 }
 
 function parseCertificatePayload(payload: string): LicenseCertificatePayload | null {
@@ -67,8 +73,10 @@ function parseCertificatePayload(payload: string): LicenseCertificatePayload | n
       typeof value.host !== "string" ||
       typeof value.licensee !== "string" ||
       typeof value.keyId !== "string" ||
+      !value.keyId ||
       typeof value.issuedAt !== "number" ||
-      !(value.expiresAt === null || typeof value.expiresAt === "number") ||
+      !Number.isFinite(value.issuedAt) ||
+      !(value.expiresAt === null || (typeof value.expiresAt === "number" && Number.isFinite(value.expiresAt))) ||
       !(value.supersedesLicenseId === null || typeof value.supersedesLicenseId === "string")
     ) return null;
     return value as LicenseCertificatePayload;
@@ -102,7 +110,11 @@ export function createLicenseCertificate(input: {
   };
   const encodedPayload = Buffer.from(JSON.stringify(payload)).toString("base64url");
   const signature = crypto.sign(null, Buffer.from(encodedPayload), signingPrivateKey()).toString("base64url");
-  return { payload: encodedPayload, signature };
+  const certificate = { payload: encodedPayload, signature };
+  if (!verifyLicenseCertificate(certificate)) {
+    throw new Error("The current signing key does not match a trusted public key.");
+  }
+  return certificate;
 }
 
 export function verifyLicenseCertificate(value: unknown): LicenseCertificatePayload | null {
@@ -128,6 +140,8 @@ interface InstallationIdentity {
   installationId: string;
   deploymentId: string;
   pendingMigrationAt?: number;
+  installedLicenseId?: string;
+  installedLicenseIssuedAt?: number;
 }
 
 async function readInstallationIdentity(): Promise<InstallationIdentity> {
@@ -153,18 +167,31 @@ async function readInstallationIdentity(): Promise<InstallationIdentity> {
 export function isActivationRequest(value: unknown): value is ActivationRequest {
   if (!value || typeof value !== "object") return false;
   const request = value as Partial<ActivationRequest>;
-  return request.version === 1 &&
-    typeof request.installationId === "string" &&
-    typeof request.deploymentId === "string" &&
-    typeof request.host === "string" &&
-    typeof request.createdAt === "number";
+  if (request.version !== 1 ||
+    typeof request.installationId !== "string" ||
+    typeof request.deploymentId !== "string" ||
+    typeof request.host !== "string" ||
+    typeof request.createdAt !== "number" ||
+    !Number.isFinite(request.createdAt) ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(request.installationId) ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(request.deploymentId) ||
+    !request.host ||
+    request.host.length > 253 ||
+    request.host !== request.host.trim() ||
+    /[\s/@\\]/u.test(request.host)) return false;
+  return true;
 }
 
 export async function createActivationRequest(host: string): Promise<ActivationRequest> {
   const identity = await readInstallationIdentity();
   const certificate = await loadInstalledCertificate().catch(() => null);
   const payload = certificate ? verifyLicenseCertificate(certificate) : null;
-  if (payload && (payload.installationId !== identity.installationId || payload.deploymentId !== identity.deploymentId || payload.host !== host)) {
+  const legacyKey = process.env.LICENSE_KEY?.trim();
+  const legacyActivation = legacyKey ? await loadLegacyActivation(legacyKey) : null;
+  if (
+    (payload && (payload.installationId !== identity.installationId || payload.deploymentId !== identity.deploymentId || payload.host !== host)) ||
+    (legacyActivation && legacyActivation.host !== host)
+  ) {
     identity.pendingMigrationAt ??= Date.now();
     const temporaryPath = `${IDENTITY_PATH}.${crypto.randomUUID()}.tmp`;
     await writeFile(temporaryPath, JSON.stringify(identity), { mode: 0o600, flag: "wx" });
@@ -192,6 +219,23 @@ export async function getPendingMigrationAt(): Promise<number | null> {
   return typeof value === "number" ? value : null;
 }
 
+export async function clearPendingMigration(): Promise<void> {
+  const identity = await readInstallationIdentity();
+  if (!identity.pendingMigrationAt) return;
+  delete identity.pendingMigrationAt;
+  const temporaryPath = `${IDENTITY_PATH}.${crypto.randomUUID()}.tmp`;
+  await writeFile(temporaryPath, JSON.stringify(identity), { mode: 0o600, flag: "wx" });
+  await rename(temporaryPath, IDENTITY_PATH);
+}
+
+export async function hasInstalledSignedLicense(): Promise<boolean> {
+  return Boolean((await readInstallationIdentity()).installedLicenseId);
+}
+
+export async function getInstalledLicenseId(): Promise<string | null> {
+  return (await readInstallationIdentity()).installedLicenseId ?? null;
+}
+
 export async function loadInstalledCertificate(): Promise<LicenseCertificate | null> {
   try {
     return JSON.parse(await readFile(CERTIFICATE_PATH, "utf8")) as LicenseCertificate;
@@ -202,15 +246,32 @@ export async function loadInstalledCertificate(): Promise<LicenseCertificate | n
 }
 
 export async function saveInstalledCertificate(certificate: LicenseCertificate): Promise<void> {
+  const payload = verifyLicenseCertificate(certificate);
+  if (!payload) throw new Error("The license certificate is not trusted.");
   await mkdir(LICENSE_STATE_DIR, { recursive: true, mode: 0o700 });
-  const temporaryPath = `${CERTIFICATE_PATH}.${crypto.randomUUID()}.tmp`;
-  await writeFile(temporaryPath, JSON.stringify(certificate), { mode: 0o600, flag: "wx" });
-  await rename(temporaryPath, CERTIFICATE_PATH);
   const identity = await readInstallationIdentity();
+  if (
+    identity.installedLicenseId &&
+    payload.licenseId !== identity.installedLicenseId &&
+    payload.supersedesLicenseId !== identity.installedLicenseId
+  ) {
+    throw new Error("This license would replace a newer installed license without superseding it.");
+  }
+  if (identity.installedLicenseIssuedAt && payload.issuedAt < identity.installedLicenseIssuedAt) {
+    throw new Error("This license is older than the latest installed license.");
+  }
+  identity.installedLicenseId = payload.licenseId;
+  identity.installedLicenseIssuedAt = payload.issuedAt;
   delete identity.pendingMigrationAt;
   const identityTemporaryPath = `${IDENTITY_PATH}.${crypto.randomUUID()}.tmp`;
   await writeFile(identityTemporaryPath, JSON.stringify(identity), { mode: 0o600, flag: "wx" });
   await rename(identityTemporaryPath, IDENTITY_PATH);
+  await unlink(LEGACY_ACTIVATION_PATH).catch((error) => {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+  });
+  const temporaryPath = `${CERTIFICATE_PATH}.${crypto.randomUUID()}.tmp`;
+  await writeFile(temporaryPath, JSON.stringify(certificate), { mode: 0o600, flag: "wx" });
+  await rename(temporaryPath, CERTIFICATE_PATH);
 }
 
 interface LegacyActivation {
@@ -236,7 +297,7 @@ export async function saveLegacyActivation(value: Omit<LegacyActivation, "signat
   await rename(temporaryPath, LEGACY_ACTIVATION_PATH);
 }
 
-export async function loadLegacyActivation(licenseKey: string, host: string): Promise<Omit<LegacyActivation, "signature"> | null> {
+export async function loadLegacyActivation(licenseKey: string, host?: string): Promise<Omit<LegacyActivation, "signature"> | null> {
   const secret = process.env.APP_SECRET || process.env.AUTH_SECRET;
   if (!secret) return null;
   try {
@@ -246,7 +307,7 @@ export async function loadLegacyActivation(licenseKey: string, host: string): Pr
     const actual = Buffer.from(signature, "base64url");
     const keyHash = crypto.createHash("sha256").update(licenseKey.trim()).digest("hex");
     if (actual.length !== expected.length || !crypto.timingSafeEqual(actual, expected)) return null;
-    if (value.licenseKeyHash !== keyHash || value.host !== host) return null;
+    if (value.licenseKeyHash !== keyHash || (host !== undefined && value.host !== host)) return null;
     return value;
   } catch {
     return null;

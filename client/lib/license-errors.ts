@@ -17,6 +17,7 @@ const LICENSE_ERROR_MESSAGES: Record<LicenseErrorCode, string> = {
   LICENSE_IDENTITY_MISMATCH: "This license belongs to a different installation. Request an approved reactivation.",
   LICENSE_STORAGE_ERROR: "The license could not be saved. Contact your system administrator.",
   LICENSE_GRACE_RESTRICTED: "The license recovery period has ended. Existing records and queue operations remain available; contact the license issuer.",
+  LICENSE_CERTIFICATE_ROLLBACK: "This file is older than the current license and cannot replace it. Request the latest approved license file.",
 };
 
 /**

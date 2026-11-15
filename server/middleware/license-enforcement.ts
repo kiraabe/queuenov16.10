@@ -1,5 +1,5 @@
 import type { RequestHandler } from "express";
-import { validateLicense } from "../services/license-service";
+import { recordLicenseValidationEvent, validateLicense } from "../services/license-service";
 import { getLicenseHost } from "../utils/license-host";
 
 const PUBLIC_PATHS = new Set([
@@ -26,9 +26,12 @@ export const enforceLicense: RequestHandler = async (req, res, next) => {
 
   try {
     const result = await validateLicense(host);
+    recordLicenseValidationEvent(result);
     if (result.mode === "restricted") {
       if (req.path === "/admin/license-info") return next();
-      if (req.path === "/admin" || req.path.startsWith("/admin/")) {
+      const isAdminMutation = ["POST", "PUT", "PATCH", "DELETE"].includes(req.method.toUpperCase()) &&
+        (req.path === "/admin" || req.path.startsWith("/admin/"));
+      if (isAdminMutation) {
         return res.status(403).json({
           error: "License recovery is required for administrative operations.",
           message: result.message,

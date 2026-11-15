@@ -20,6 +20,7 @@ interface IssuedLicense {
   deploymentId: string;
   previousInstallationId: string | null;
   previousDeploymentId: string | null;
+  previousHost: string | null;
   licensee: string;
   status: "active" | "superseded" | "revoked";
   expiresAt: number | null;
@@ -27,6 +28,8 @@ interface IssuedLicense {
   notes: string | null;
   supersedesLicenseId: string | null;
   migrationReason: string | null;
+  revokedAt: number | null;
+  supersededAt: number | null;
 }
 
 export default function SignedLicenseIssuance({ unlockToken }: { unlockToken: string }) {
@@ -175,6 +178,8 @@ export default function SignedLicenseIssuance({ unlockToken }: { unlockToken: st
                 <p className="font-medium">{license.licensee} · {license.status}</p>
                 <p className="break-all text-xs text-muted-foreground">License {license.licenseId} · Installation {license.installationId}</p>
                 <p className="text-xs text-muted-foreground">Issued {new Date(license.createdAt).toLocaleDateString()}{license.expiresAt ? ` · Expires ${new Date(license.expiresAt).toLocaleDateString()}` : " · No expiry"}{license.migrationReason ? ` · ${license.migrationReason}` : ""}</p>
+                {license.previousInstallationId && <p className="break-all text-xs text-muted-foreground">Replaced installation {license.previousInstallationId}{license.previousHost ? ` · ${license.previousHost}` : ""}{license.supersededAt ? ` · superseded ${new Date(license.supersededAt).toLocaleDateString()}` : ""}</p>}
+                {license.revokedAt && <p className="text-xs text-muted-foreground">Revoked {new Date(license.revokedAt).toLocaleDateString()}</p>}
               </div>
               {license.status === "active" && <Button type="button" size="sm" variant="destructive" onClick={() => handleRevoke(license.licenseId)}>Revoke</Button>}
             </div>

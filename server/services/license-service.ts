@@ -4,7 +4,10 @@ import { getLicenseByKeyDb, getPrimaryLicenseDb, updateLicenseHostDb } from "../
 import {
   getDeploymentId,
   getInstallationId,
+  getInstalledLicenseId,
   getPendingMigrationAt,
+  clearPendingMigration,
+  hasInstalledSignedLicense,
   loadInstalledCertificate,
   loadLegacyActivation,
   saveLegacyActivation,
@@ -22,6 +25,17 @@ export interface LicenseValidationResult {
   installationId?: string;
   expiresAt?: number | null;
   host?: string;
+}
+
+const recentValidationEvents = new Map<string, number>();
+
+export function recordLicenseValidationEvent(result: LicenseValidationResult): void {
+  if (result.valid && result.mode !== "grace") return;
+  const code = result.errorCode || result.mode || "invalid";
+  const now = Date.now();
+  if (now - (recentValidationEvents.get(code) || 0) < 60 * 60 * 1000) return;
+  recentValidationEvents.set(code, now);
+  console.warn(`[License] Validation event ${code}: ${result.message}`);
 }
 
 function gracePeriodDays(): number {
@@ -92,7 +106,17 @@ export async function validateLicense(host: string, licenseKey?: string): Promis
     if (!payload) {
       return { valid: false, mode: "restricted", message: "The installed license file is invalid or not trusted.", warning: "Contact the license issuer for a verified replacement.", errorCode: "LICENSE_CERTIFICATE_INVALID" };
     }
-    const [installationId, deploymentId] = await Promise.all([getInstallationId(), getDeploymentId()]);
+    let installationId: string;
+    let deploymentId: string;
+    let installedLicenseId: string | null;
+    try {
+      [installationId, deploymentId, installedLicenseId] = await Promise.all([getInstallationId(), getDeploymentId(), getInstalledLicenseId()]);
+    } catch {
+      return { valid: false, mode: "restricted", message: "The installation identity could not be read. Contact the system administrator for recovery.", warning: "Existing case and queue operations remain available during recovery.", errorCode: "LICENSE_STORAGE_ERROR" };
+    }
+    if (installedLicenseId && payload.licenseId !== installedLicenseId) {
+      return { valid: false, mode: "restricted", message: "The installed license file is older than the latest approved license.", warning: "Upload the latest approved license file. Existing case and queue operations remain available.", errorCode: "LICENSE_CERTIFICATE_ROLLBACK" };
+    }
     if (payload.installationId !== installationId || payload.deploymentId !== deploymentId) {
       const message = "This license belongs to a different installation. Request reactivation.";
       return await migrationResult(message, payload.licensee) ?? { valid: false, mode: "restricted", message, warning: "Existing case and queue operations remain available while this installation is reactivated.", errorCode: "LICENSE_IDENTITY_MISMATCH" };
@@ -101,10 +125,34 @@ export async function validateLicense(host: string, licenseKey?: string): Promis
       const message = "This license is registered to a different domain. Request reactivation.";
       return await migrationResult(message, payload.licensee) ?? { valid: false, mode: "restricted", message, warning: "Existing case and queue operations remain available while this installation is reactivated.", errorCode: "LICENSE_HOST_MISMATCH" };
     }
+    await clearPendingMigration().catch((error) => {
+      console.warn("[License] Could not clear completed migration state:", error);
+    });
     const licenseInfo = { licenseId: payload.licenseId, installationId, expiresAt: payload.expiresAt, host };
     const expired = expirationResult(payload.expiresAt, payload.licensee);
     if (expired) return { ...expired, ...licenseInfo };
     return { valid: true, mode: "active", message: `Licensed to ${payload.licensee}`, licensee: payload.licensee, ...licenseInfo };
+  }
+
+  try {
+    if (await hasInstalledSignedLicense()) {
+      return { valid: false, mode: "restricted", message: "The installed signed license file is missing. Restore it from backup or request a replacement.", warning: "Existing case and queue operations remain available during recovery.", errorCode: "LICENSE_STORAGE_ERROR" };
+    }
+  } catch {
+    const legacyKey = (process.env.LICENSE_KEY || "").trim();
+    const legacyActivation = legacyKey ? await loadLegacyActivation(legacyKey, host) : null;
+    if (legacyActivation) {
+      return expirationResult(legacyActivation.expiresAt, legacyActivation.licensee) ?? {
+        valid: true,
+        mode: "active",
+        message: `Licensed to ${legacyActivation.licensee}`,
+        licensee: legacyActivation.licensee,
+        licenseId: legacyActivation.licenseId,
+        expiresAt: legacyActivation.expiresAt,
+        host,
+      };
+    }
+    return { valid: false, message: "The installation identity could not be read, and no recoverable activation record was found.", errorCode: "LICENSE_STORAGE_ERROR" };
   }
 
   const envLicenseKey = (process.env.LICENSE_KEY || "").trim();
@@ -116,6 +164,11 @@ export async function validateLicense(host: string, licenseKey?: string): Promis
     const persisted = await loadLegacyActivation(envLicenseKey, host);
     if (persisted) {
       return expirationResult(persisted.expiresAt, persisted.licensee) ?? { valid: true, mode: "active", message: `Licensed to ${persisted.licensee}`, licensee: persisted.licensee, licenseId: persisted.licenseId, expiresAt: persisted.expiresAt, host };
+    }
+    const priorActivation = await loadLegacyActivation(envLicenseKey);
+    if (priorActivation && priorActivation.host !== host) {
+      const message = "This legacy license is bound to a different server installation. Request issuer-approved reactivation.";
+      return await migrationResult(message, priorActivation.licensee) ?? { valid: false, mode: "restricted", message, warning: "Existing case and queue operations remain available while this installation is reactivated.", errorCode: "LICENSE_HOST_MISMATCH" };
     }
   } else if (licenseKey.trim() !== envLicenseKey) {
     return { valid: false, message: "Invalid license key provided.", errorCode: "LICENSE_MISMATCH" };
@@ -133,10 +186,21 @@ export async function validateLicense(host: string, licenseKey?: string): Promis
     if (expired) {
       if (expired.mode === "restricted") return expired;
     }
-    if (dbLicense.activatedHost && dbLicense.activatedHost !== host) {
-      return { valid: false, message: "This license is bound to a different server installation.", errorCode: "LICENSE_HOST_MISMATCH" };
+    const persistedLegacy = await loadLegacyActivation(envLicenseKey);
+    const boundHost = dbLicense.activatedHost || persistedLegacy?.host;
+    if (boundHost && boundHost !== host) {
+      const message = "This license is bound to a different server installation. Request issuer-approved reactivation.";
+      return await migrationResult(message, dbLicense.licensee || "STC") ?? { valid: false, mode: "restricted", message, warning: "Existing case and queue operations remain available while this installation is reactivated.", errorCode: "LICENSE_HOST_MISMATCH" };
     }
-    if (!dbLicense.activatedHost) await updateLicenseHostDb(dbLicense.id, host);
+    if (!dbLicense.activatedHost) {
+      const claimed = await updateLicenseHostDb(dbLicense.id, host);
+      if (!claimed) {
+        const current = await getLicenseByKeyDb(envLicenseKey);
+        if (current?.activatedHost !== host) {
+          return { valid: false, message: "This license is bound to a different server installation.", errorCode: "LICENSE_HOST_MISMATCH" };
+        }
+      }
+    }
     const licenseKeyHash = crypto.createHash("sha256").update(envLicenseKey).digest("hex");
     await saveLegacyActivation({ licenseKeyHash, licenseId: dbLicense.id, host, licensee: dbLicense.licensee || "STC", expiresAt: dbLicense.expiresAt }).catch((error) => {
       console.warn("[License] Could not persist the legacy activation outside the database:", error);

@@ -509,7 +509,8 @@ export type LicenseErrorCode =
   | "LICENSE_CERTIFICATE_INVALID"
   | "LICENSE_IDENTITY_MISMATCH"
   | "LICENSE_STORAGE_ERROR"
-  | "LICENSE_GRACE_RESTRICTED";
+  | "LICENSE_GRACE_RESTRICTED"
+  | "LICENSE_CERTIFICATE_ROLLBACK";
 
 export interface ValidateLicenseResponse {
   valid: boolean;

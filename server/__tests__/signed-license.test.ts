@@ -48,6 +48,41 @@ describe("signed license certificates", () => {
     expect(signedLicense.verifyLicenseCertificate({ ...certificate, signature: "invalid" })).toBeNull();
   });
 
+  it("keeps old licenses valid while signing with a rotated key", async () => {
+    const request = await signedLicense.createActivationRequest("subcity.example.org");
+    const previousPair = crypto.generateKeyPairSync("ed25519");
+    process.env.LICENSE_SIGNING_KEY_ID = "old-key";
+    process.env.LICENSE_SIGNING_PRIVATE_KEY = previousPair.privateKey.export({ type: "pkcs8", format: "pem" }).toString();
+    process.env.LICENSE_TRUSTED_PUBLIC_KEYS = JSON.stringify({ "old-key": previousPair.publicKey.export({ type: "spki", format: "pem" }).toString() });
+    const previous = signedLicense.createLicenseCertificate({
+      installationId: request.installationId,
+      deploymentId: request.deploymentId,
+      host: request.host,
+      licensee: "Sub-city A",
+      expiresAt: null,
+      supersedesLicenseId: null,
+    });
+
+    const currentPair = crypto.generateKeyPairSync("ed25519");
+    process.env.LICENSE_SIGNING_KEY_ID = "current-key";
+    process.env.LICENSE_SIGNING_PRIVATE_KEY = currentPair.privateKey.export({ type: "pkcs8", format: "pem" }).toString();
+    process.env.LICENSE_TRUSTED_PUBLIC_KEYS = JSON.stringify({
+      "old-key": previousPair.publicKey.export({ type: "spki", format: "pem" }).toString(),
+      "current-key": currentPair.publicKey.export({ type: "spki", format: "pem" }).toString(),
+    });
+    const current = signedLicense.createLicenseCertificate({
+      installationId: request.installationId,
+      deploymentId: request.deploymentId,
+      host: request.host,
+      licensee: "Sub-city A",
+      expiresAt: null,
+      supersedesLicenseId: null,
+    });
+
+    expect(signedLicense.verifyLicenseCertificate(previous)).not.toBeNull();
+    expect(signedLicense.verifyLicenseCertificate(current)?.keyId).toBe("current-key");
+  });
+
   it("keeps installation identity stable in persistent state", async () => {
     const first = await signedLicense.createActivationRequest("subcity.example.org");
     const second = await signedLicense.createActivationRequest("subcity.example.org");

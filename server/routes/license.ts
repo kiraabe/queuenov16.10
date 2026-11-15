@@ -1,6 +1,6 @@
 import { RequestHandler } from "express";
 import { ValidateLicenseRequest, ValidateLicenseResponse } from "@shared/api";
-import { validateLicense } from "../services/license-service";
+import { recordLicenseValidationEvent, validateLicense } from "../services/license-service";
 import { createActivationRequest, getDeploymentId, getInstallationId, loadInstalledCertificate, saveInstalledCertificate, verifyLicenseCertificate } from "../services/signed-license";
 import { getLicenseHost } from "../utils/license-host";
 
@@ -26,11 +26,12 @@ export const validateLicenseHandler: RequestHandler = async (req, res) => {
     }
 
     const result = await validateLicense(host, licenseKey);
+    recordLicenseValidationEvent(result);
     const response: ValidateLicenseResponse = {
       valid: result.valid,
       message: result.message,
       errorCode: result.errorCode,
-      licensee: result.licensee,
+      licensee: result.valid && result.mode === "active" ? result.licensee : undefined,
       mode: result.mode,
       warning: result.warning,
     };
@@ -74,6 +75,9 @@ export const importLicenseCertificateHandler: RequestHandler = async (req, res) 
     res.json({ valid: true, message: `Licensed to ${payload.licensee}`, licensee: payload.licensee, mode: "active" });
   } catch (error) {
     console.error("[License] License file import failed:", error);
+    if (error instanceof Error && error.message.includes("installed license")) {
+      return res.status(409).json({ valid: false, message: error.message, errorCode: "LICENSE_CERTIFICATE_ROLLBACK" });
+    }
     res.status(500).json({ valid: false, message: "Unable to save the license file. Check persistent license storage.", errorCode: "LICENSE_STORAGE_ERROR" });
   }
 };
@@ -113,11 +117,12 @@ export const checkLicenseStatusHandler: RequestHandler = async (req, res) => {
     }
 
     const result = await validateLicense(host);
+    recordLicenseValidationEvent(result);
     const response: ValidateLicenseResponse = {
       valid: result.valid,
       message: result.message,
       errorCode: result.errorCode,
-      licensee: result.licensee,
+      licensee: result.valid && result.mode === "active" ? result.licensee : undefined,
       mode: result.mode,
       warning: result.warning,
     };

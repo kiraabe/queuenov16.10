@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { requireLicenseIssuer } from "../middleware/license-issuer";
 
@@ -24,9 +25,11 @@ describe("license issuer authorization", () => {
   });
 
   it("allows requests only when the issuer signing configuration is present", () => {
+    const pair = crypto.generateKeyPairSync("ed25519");
     process.env.LICENSE_ISSUER_ENABLED = "true";
     process.env.LICENSE_SIGNING_KEY_ID = "test-key";
-    process.env.LICENSE_SIGNING_PRIVATE_KEY = "issuer-only-key";
+    process.env.LICENSE_SIGNING_PRIVATE_KEY = pair.privateKey.export({ type: "pkcs8", format: "pem" }).toString();
+    process.env.LICENSE_TRUSTED_PUBLIC_KEYS = JSON.stringify({ "test-key": pair.publicKey.export({ type: "spki", format: "pem" }).toString() });
     const next = vi.fn();
     requireLicenseIssuer({} as never, {} as never, next);
     expect(next).toHaveBeenCalledOnce();
