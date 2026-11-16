@@ -5,7 +5,7 @@ These settings turn this app into a license issuer. They are for the vendor's is
 | Setting | Value | Secret |
 | --- | --- | --- |
 | `LICENSE_ISSUER_ENABLED` | `true` | No |
-| `LICENSE_SIGNING_KEY_ID` | `dev-2` | No |
+| `LICENSE_SIGNING_KEY_ID` | `dev-3` | No |
 | `LICENSE_TRUSTED_PUBLIC_KEYS` | See below | No (public) |
 | `LICENSE_SIGNING_PRIVATE_KEY` | Stored in project environment settings | Yes |
 | `LICENSES_PIN` | Stored in project environment settings | Yes |
@@ -13,7 +13,7 @@ These settings turn this app into a license issuer. They are for the vendor's is
 Trusted public key map:
 
 ```json
-{"dev-2":"-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEA6LJSRTOjWtz+y3aDwSJdsW5KGW5DEc5WzzWGcV6EPCE=\n-----END PUBLIC KEY-----"}
+{"dev-3":"-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAXDSkPGSKGmMGFIIpS5U2kF2dOx0hVZE68OZUX8kITLY=\n-----END PUBLIC KEY-----"}
 ```
 
 Never commit the private key or the PIN to this repository.
