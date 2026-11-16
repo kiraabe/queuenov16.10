@@ -134,7 +134,7 @@ export default function SignedLicenseIssuance({ unlockToken }: { unlockToken: st
           <CardDescription>Import a sub-city activation request, approve it, and send the downloaded license file back for local activation.</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleIssue} className="space-y-4">
+          <form onSubmit={handleIssue} className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
               <Label htmlFor="activation-request">Activation request file</Label>
               <Input id="activation-request" type="file" accept="application/json,.json" onChange={(event) => handleRequestFile(event.target.files?.[0])} disabled={isSubmitting} />
@@ -161,7 +161,7 @@ export default function SignedLicenseIssuance({ unlockToken }: { unlockToken: st
               <Label htmlFor="signed-license-notes">Internal notes</Label>
               <Textarea id="signed-license-notes" value={notes} onChange={(event) => setNotes(event.target.value)} maxLength={1000} disabled={isSubmitting} />
             </div>
-            <Button type="submit" disabled={!activationRequest || !licensee.trim() || isSubmitting}>{isSubmitting ? "Issuing..." : "Approve and Issue License"}</Button>
+            <Button type="submit" className="md:col-span-full md:justify-self-start" disabled={!activationRequest || !licensee.trim() || isSubmitting}>{isSubmitting ? "Issuing..." : "Approve and Issue License"}</Button>
           </form>
         </CardContent>
       </Card>
