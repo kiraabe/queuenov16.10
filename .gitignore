@@ -13,6 +13,7 @@ dist-ssr
 *.local
 
 .stc-license/
+data/license-state/
 
 # Editor directories and files
 .vscode/*

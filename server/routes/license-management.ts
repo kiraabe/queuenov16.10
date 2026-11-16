@@ -132,6 +132,7 @@ export const createSignedLicenseHandler: RequestHandler = async (req, res) => {
       licenseId: payload.licenseId,
       installationId: activationRequest.installationId,
       deploymentId: activationRequest.deploymentId,
+      host: activationRequest.host,
       licensee,
       certificate,
       expiresAt: payload.expiresAt,
@@ -143,7 +144,7 @@ export const createSignedLicenseHandler: RequestHandler = async (req, res) => {
     res.status(201).json({ success: true, certificate, license: payload });
   } catch (error) {
     console.error("[License Management] Signed license issue error:", error);
-    const message = error instanceof Error && error.message.includes("active license")
+    const message = error instanceof Error && /active license|already licensed for host/.test(error.message)
       ? error.message
       : "Failed to issue signed license.";
     res.status(400).json({ success: false, message });

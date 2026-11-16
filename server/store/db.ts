@@ -4274,10 +4274,28 @@ export interface LicenseIssuanceRecord {
   revokedByUserId: string | null;
 }
 
+function readCertificateHost(certificate: unknown): string | null {
+  try {
+    const payload = JSON.parse(Buffer.from((certificate as { payload: string }).payload, "base64url").toString("utf8"));
+    return typeof payload.host === "string" ? payload.host : null;
+  } catch {
+    return null;
+  }
+}
+
+export function findInstallationHostConflict(certificates: unknown[], host: string): string | null {
+  for (const certificate of certificates) {
+    const boundHost = readCertificateHost(certificate);
+    if (boundHost && boundHost !== host) return boundHost;
+  }
+  return null;
+}
+
 export async function createLicenseIssuanceDb(input: {
   licenseId: string;
   installationId: string;
   deploymentId: string;
+  host: string;
   licensee: string;
   certificate: unknown;
   expiresAt: number | null;
@@ -4289,6 +4307,19 @@ export async function createLicenseIssuanceDb(input: {
   const client = await getPool().connect();
   try {
     await client.query("BEGIN");
+    const boundCertificates = await client.query(
+      `SELECT certificate FROM license_issuances WHERE installation_id = $1 FOR UPDATE`,
+      [input.installationId],
+    );
+    const conflictingHost = findInstallationHostConflict(
+      boundCertificates.rows.map((row) => row.certificate),
+      input.host,
+    );
+    if (conflictingHost) {
+      throw new Error(
+        `This installation identity is already licensed for host ${conflictingHost}. Generate a new activation request on ${input.host}.`,
+      );
+    }
     let previousInstallationId: string | null = null;
     let previousDeploymentId: string | null = null;
     let previousHost: string | null = null;
