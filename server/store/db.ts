@@ -4374,13 +4374,13 @@ export async function listLicenseIssuancesDb(): Promise<LicenseIssuanceRecord[]>
     `SELECT license_id as "licenseId", installation_id as "installationId",
       deployment_id as "deploymentId", previous_installation_id as "previousInstallationId",
       previous_deployment_id as "previousDeploymentId", previous_host as "previousHost", licensee, status, certificate,
-      extract(epoch from expires_at)*1000 as "expiresAt",
-      extract(epoch from created_at)*1000 as "createdAt",
+      (extract(epoch from expires_at)*1000)::float8 as "expiresAt",
+      (extract(epoch from created_at)*1000)::float8 as "createdAt",
       created_by_user_id as "createdByUserId", notes,
       supersedes_license_id as "supersedesLicenseId", migration_reason as "migrationReason",
-      extract(epoch from superseded_at)*1000 as "supersededAt",
+      (extract(epoch from superseded_at)*1000)::float8 as "supersededAt",
       superseded_by_user_id as "supersededByUserId",
-      extract(epoch from revoked_at)*1000 as "revokedAt",
+      (extract(epoch from revoked_at)*1000)::float8 as "revokedAt",
       revoked_by_user_id as "revokedByUserId"
      FROM license_issuances ORDER BY created_at DESC`,
   );
