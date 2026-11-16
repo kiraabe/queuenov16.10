@@ -39,6 +39,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Plus, Trash2, Lock, AlertCircle, Copy } from "lucide-react";
 import { toast } from "sonner";
 import SignedLicenseIssuance from "./SignedLicenseIssuance";
+import ActiveSignedLicenses from "./ActiveSignedLicenses";
 import type {
   ListLicensesResponse,
   CreateLicenseResponse,
@@ -50,6 +51,7 @@ export default function LicenseManagement({ unlockToken, legacyIssuanceEnabled }
   const [isLoading, setIsLoading] = useState(true);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [signedRefreshKey, setSignedRefreshKey] = useState(0);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -385,7 +387,8 @@ For technical support or issues with license activation:
 
   return (
     <div className="space-y-6">
-      <SignedLicenseIssuance unlockToken={unlockToken} />
+      <SignedLicenseIssuance unlockToken={unlockToken} onChange={() => setSignedRefreshKey((key) => key + 1)} />
+      <ActiveSignedLicenses unlockToken={unlockToken} refreshKey={signedRefreshKey} onChange={() => setSignedRefreshKey((key) => key + 1)} />
       {legacyIssuanceEnabled && <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold">License Management</h2>
@@ -482,7 +485,7 @@ For technical support or issues with license activation:
         </Dialog>
       </div>}
 
-      {isLoading ? (
+      {legacyIssuanceEnabled && (isLoading ? (
         <Card>
           <CardContent className="pt-6">
             <div className="flex justify-center items-center h-40">
@@ -504,7 +507,7 @@ For technical support or issues with license activation:
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle>Active Licenses ({licenses.length})</CardTitle>
+            <CardTitle>Legacy License Keys ({licenses.length})</CardTitle>
             <CardDescription>
               {licenses.length > 0 ? `Showing ${startIndex + 1}–${Math.min(endIndex, licenses.length)} of ${licenses.length}` : "No licenses yet."}
             </CardDescription>
@@ -676,7 +679,7 @@ For technical support or issues with license activation:
             )}
           </CardContent>
         </Card>
-      )}
+      ))}
     </div>
   );
 }

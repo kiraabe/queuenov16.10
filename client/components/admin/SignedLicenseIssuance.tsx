@@ -14,7 +14,7 @@ interface ActivationRequest {
   createdAt: number;
 }
 
-interface IssuedLicense {
+export interface IssuedLicense {
   licenseId: string;
   installationId: string;
   deploymentId: string;
@@ -32,7 +32,7 @@ interface IssuedLicense {
   supersededAt: number | null;
 }
 
-export default function SignedLicenseIssuance({ unlockToken }: { unlockToken: string }) {
+export default function SignedLicenseIssuance({ unlockToken, onChange }: { unlockToken: string; onChange: () => void }) {
   const [activationRequest, setActivationRequest] = useState<ActivationRequest | null>(null);
   const [licenses, setLicenses] = useState<IssuedLicense[]>([]);
   const [licensee, setLicensee] = useState("");
@@ -103,6 +103,7 @@ export default function SignedLicenseIssuance({ unlockToken }: { unlockToken: st
       setSupersedesLicenseId("");
       setMigrationReason("");
       await loadLicenses();
+      onChange();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not issue the license.");
     } finally {
@@ -121,6 +122,7 @@ export default function SignedLicenseIssuance({ unlockToken }: { unlockToken: st
       if (!response.ok) throw new Error(data.message || "Could not revoke the license.");
       toast.success(data.message);
       await loadLicenses();
+      onChange();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not revoke the license.");
     }
