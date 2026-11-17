@@ -27,7 +27,6 @@ import TellerWindow from "./pages/TellerWindow";
 import { AuthProvider, useAuth, useSessionLostRedirect } from "@/hooks/use-auth";
 import { RequireAuth } from "@/components/auth/RequireAuth";
 import { RestrictPublicAccess } from "@/components/auth/RestrictPublicAccess";
-import { LicenseProvider } from "@/components/license/LicenseProvider";
 import { LanguageProvider } from "@/hooks/use-language";
 import { homePathForUser } from "@/lib/role-home";
 
@@ -91,7 +90,7 @@ function SessionMonitor() {
 }
 
 const App = () => (
-  <LicenseProvider>
+  <>
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
@@ -175,7 +174,7 @@ const App = () => (
         </TooltipProvider>
       </QueryClientProvider>
     </ThemeProvider>
-  </LicenseProvider>
+  </>
 );
 
 export default App;
