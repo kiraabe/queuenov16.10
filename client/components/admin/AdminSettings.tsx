@@ -12,7 +12,6 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, Clock, Gauge, Save, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
-import LicenseManagement from "./LicenseManagement";
 import PINLock from "./PINLock";
 import { SettingRow, SettingsSection } from "./settings/SettingsSection";
 import type {
@@ -133,9 +132,8 @@ export default function AdminSettings() {
       />
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-1">
           <TabsTrigger value="queue">Queue Configuration</TabsTrigger>
-          <TabsTrigger value="licenses">Licenses</TabsTrigger>
         </TabsList>
 
         <TabsContent value="queue" className="space-y-6">
@@ -251,11 +249,6 @@ export default function AdminSettings() {
           </div>
         </TabsContent>
 
-        <TabsContent value="licenses" className="space-y-4">
-          {licensesUnlockToken && (
-            <LicenseManagement unlockToken={licensesUnlockToken} />
-          )}
-        </TabsContent>
       </Tabs>
     </div>
   );
