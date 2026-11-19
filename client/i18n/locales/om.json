@@ -50,6 +50,13 @@
         }
       }
     },
+    "features": {
+      "title": "Amaloota Bu'uuraa (Core Features)",
+      "subtitle": "Dandeettiiwwan ijoo bulchiinsa adeemsa hojii bu'a qabeessaa fi qunnamtii maamiltootaa dandeessisan.",
+      "reception": { "title": "Simannaa fi Tikeetota (Reception & Tickets)", "description": "Tikeetota koodii QR saffisaa qajeelfama hojjettoota tajaajilaaf qophaa'e qaban kenni." },
+      "virtualWaiting": { "title": "Bakka Eeggannoo Fagoofaa / Dijitaalaa (Virtual Waiting Area)", "description": "Fuulonni haalaa tikeetirratti hundaa'an sadarkaa hiriiraa sirrii fi tilmaama yeroo turtii ni agarsiisu." },
+      "liveDelivery": { "title": "Kenniinsa Tajaajila Kallattii (Live Service Delivery)", "description": "Wal-simsiisuu yeroo qabatamaatiif (Real-time Synchronization) kan oolan agarsiistuuwwan galmaa gurguddoo fi daashboordiiwwan hojjettootaa." }
+    },
     "coreFeatures": "Amaloota Guguddoo",
     "featuresSubtitle": "Dandeettiiwwan furtuu bulchiinsa adeemsa hojii fi qunnamtii maamilaa hordofsiisani.",
     "feat1Title": "Simannaa & Tikkeetii",

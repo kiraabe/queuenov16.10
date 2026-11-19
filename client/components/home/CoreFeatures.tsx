@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
 import styles from "./CoreFeatures.module.css";
 
-type Feature = { title: string; text: string; icon: ReactNode };
+import { useTranslation } from "@/hooks/use-translation";
+
+type Feature = { id: "reception" | "virtualWaiting" | "liveDelivery"; icon: ReactNode };
 
 const svg = (d: ReactNode) => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -11,8 +13,7 @@ const svg = (d: ReactNode) => (
 
 const features: Feature[] = [
   {
-    title: "Reception & Tickets",
-    text: "Issue fast QR-coded tickets with instructions prepared for service staff.",
+    id: "reception",
     icon: svg(
       <>
         <path d="M3 9a2 2 0 0 0 0 6v3a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1v-3a2 2 0 0 1 0-6V6a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1z" />
@@ -22,8 +23,7 @@ const features: Feature[] = [
     ),
   },
   {
-    title: "Virtual Waiting Area",
-    text: "Ticket-based status pages show accurate position and estimated wait time.",
+    id: "virtualWaiting",
     icon: svg(
       <>
         <circle cx="12" cy="12" r="9" />
@@ -32,8 +32,7 @@ const features: Feature[] = [
     ),
   },
   {
-    title: "Live Service Delivery",
-    text: "Large lobby displays and staff dashboards for real-time synchronization.",
+    id: "liveDelivery",
     icon: svg(
       <>
         <rect x="3" y="4" width="18" height="12" rx="2" />
@@ -44,22 +43,22 @@ const features: Feature[] = [
 ];
 
 export default function CoreFeatures() {
+  const { t } = useTranslation();
+
   return (
     <section className={styles.section} aria-labelledby="core-features-title">
       <div className={styles.inner}>
         <header className={styles.header}>
-          <h2 id="core-features-title" className={styles.heading}>Core Features</h2>
-          <p className={styles.sub}>
-            Key capabilities that enable efficient workflow management and customer communication.
-          </p>
+          <h2 id="core-features-title" className={styles.heading}>{t("home.features.title")}</h2>
+          <p className={styles.sub}>{t("home.features.subtitle")}</p>
         </header>
 
         <div className={styles.grid}>
           {features.map((f) => (
-            <article key={f.title} className={styles.card}>
+            <article key={f.id} className={styles.card}>
               <span className={styles.iconTile}>{f.icon}</span>
-              <h3 className={styles.title}>{f.title}</h3>
-              <p className={styles.text}>{f.text}</p>
+              <h3 className={styles.title}>{t(`home.features.${f.id}.title`)}</h3>
+              <p className={styles.text}>{t(`home.features.${f.id}.description`)}</p>
             </article>
           ))}
         </div>

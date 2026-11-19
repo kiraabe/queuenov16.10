@@ -64,6 +64,13 @@
         }
       }
     },
+    "features": {
+      "title": "Core Features",
+      "subtitle": "Key capabilities that enable efficient workflow management and customer communication.",
+      "reception": { "title": "Reception & Tickets", "description": "Issue fast QR-coded tickets with instructions prepared for service staff." },
+      "virtualWaiting": { "title": "Virtual Waiting Area", "description": "Ticket-based status pages show accurate position and estimated wait time." },
+      "liveDelivery": { "title": "Live Service Delivery", "description": "Large lobby displays and staff dashboards for real-time synchronization." }
+    },
     "coreFeatures": "Core Features",
     "featuresSubtitle": "Key capabilities that enable efficient workflow management and customer communication.",
     "feat1Title": "Reception & Tickets",

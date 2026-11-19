@@ -52,6 +52,13 @@
         }
       }
     },
+    "features": {
+      "title": "ዋና ባህሪያት (Core Features)",
+      "subtitle": "ቀልጣፋ የስራ ሂደት አስተዳደርን እና የደንበኞችን ግንኙነት የሚያመቻቹ ቁልፍ አቅሞች።",
+      "reception": { "title": "እንግዳ መቀበያ እና ቲኬቶች (Reception & Tickets)", "description": "ለአገልግሎት ሰራተኞች የተዘጋጁ መመሪያዎችን የያዙ ፈጣን የQR ኮድ ቲኬቶችን ይስጡ።" },
+      "virtualWaiting": { "title": "ምናባዊ የጥበቃ ቦታ (Virtual Waiting Area)", "description": "በቲኬት ላይ የተመሰረቱ የሁኔታ ገጾች ትክክለኛውን የወረፋ ደረጃ እና የሚገመተውን የጥበቃ ጊዜ ያሳያሉ።" },
+      "liveDelivery": { "title": "ቀጥታ የአገልግሎት አሰጣጥ (Live Service Delivery)", "description": "ለቀጥታ ማመሳሰል (Real-time Synchronization) የሚያገለግሉ ትልልቅ የመግቢያ ማሳያዎች እና የሰራተኞች ዳሽቦርዶች።" }
+    },
     "coreFeatures": "ዋና ዋና ባህሪያት",
     "featuresSubtitle": "ውጤታማ የስራ ፍሰት አስተዳደርን እና የደንበኛ ግንኙነትን የሚያስችሉ ቁልፍ አቅሞች።",
     "feat1Title": "አቀባበል እና ትኬቶች",
