@@ -27,7 +27,10 @@ export function LanguageMenu({ className }: { className?: string }) {
         <Button
           variant="ghost"
           size="sm"
-          className={cn("gap-2 px-2 h-10", className)}
+          className={cn(
+            "gap-2 px-2 h-10 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:bg-accent",
+            className,
+          )}
           aria-label="Change language"
         >
           <Globe className="h-4 w-4" aria-hidden="true" />
