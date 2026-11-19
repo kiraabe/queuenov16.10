@@ -97,17 +97,6 @@ function toAuthUserFromRow(row: {
   };
 }
 
-function toAuthUserFromSession(session: SessionRecord): AuthUser {
-  return {
-    id: session.userId,
-    username: session.username,
-    role: session.activeRole,
-    windowId: session.windowId ?? null,
-    jobTitleId: session.jobTitleId ?? undefined,
-    mustChangePassword: session.mustChangePassword,
-  };
-}
-
 function buildSessionCookie(token: string): string {
   const parts = [
     `${SESSION_COOKIE}=${encodeURIComponent(token)}`,
@@ -1139,7 +1128,16 @@ export const switchRole: RequestHandler = async (req, res) => {
     },
   });
 
-  const user = toAuthUserFromSession(updatedSession);
+  const { rows: userRows } = await p.query(
+    `SELECT id, username, window_id, full_name, job_title_id, phone, email, department, created_at, must_change_password
+     FROM users WHERE id=$1 LIMIT 1`,
+    [session.userId],
+  );
+  const user = {
+    ...toAuthUserFromRow({ ...userRows[0], role: desiredRole }),
+    roles: [desiredRole],
+    lastLoginAt: updatedSession.createdAt.getTime(),
+  };
   res.json({ user, message: `Switched to ${desiredRole} role` });
 };
 
