@@ -1,5 +1,6 @@
 import { Navigate } from "react-router-dom";
 import Hero from "@/components/home/Hero";
+import CoreFeatures from "@/components/home/CoreFeatures";
 import WorkflowPhases from "@/components/home/WorkflowPhases";
 import {
   Accordion,
@@ -126,51 +127,7 @@ export default function Index() {
     <div className="relative overflow-visible">
       <Hero />
 
-      <section
-        id="features"
-        className="relative border-t border-border/60 bg-foreground/5 py-8 sm:py-12 md:py-16"
-      >
-        <div className="px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col items-start">
-            <h2 className="font-display text-2xl sm:text-3xl font-semibold text-foreground">
-              {t("home.coreFeatures")}
-            </h2>
-            <p className="mt-1 sm:mt-2 text-sm text-muted-foreground max-w-2xl">
-              {t("home.featuresSubtitle")}
-            </p>
-          </div>
-
-          <div className="mt-6 sm:mt-8 grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-3">
-            <div className="rounded-lg border border-border/60 bg-card/90 p-4 sm:p-5 hover:bg-card/95 transition-colors">
-              <h3 className="text-sm sm:text-base font-semibold text-foreground">
-                {t("home.feat1Title")}
-              </h3>
-              <p className="mt-2 text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                {t("home.feat1Desc")}
-              </p>
-            </div>
-
-            <div className="rounded-lg border border-border/60 bg-card/90 p-4 sm:p-5 hover:bg-card/95 transition-colors">
-              <h3 className="text-sm sm:text-base font-semibold text-foreground">
-                {t("home.feat2Title")}
-              </h3>
-              <p className="mt-2 text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                {t("home.feat2Desc")}
-              </p>
-            </div>
-
-            <div className="rounded-lg border border-border/60 bg-card/90 p-4 sm:p-5 hover:bg-card/95 transition-colors">
-              <h3 className="text-sm sm:text-base font-semibold text-foreground">
-                {t("home.feat3Title")}
-              </h3>
-              <p className="mt-2 text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                {t("home.feat3Desc")}
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
+      <CoreFeatures />
       <WorkflowPhases />
     </div>
   );
