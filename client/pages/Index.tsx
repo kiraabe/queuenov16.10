@@ -1,27 +1,6 @@
 import { Navigate } from "react-router-dom";
-import {
-  ArrowRight,
-  BellRing,
-  CalendarClock,
-  CheckCircle2,
-  ClipboardCheck,
-  LineChart,
-  Monitor,
-  QrCode,
-  Smartphone,
-  Users,
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
-
-import { Badge } from "@/components/ui/badge";
 import Hero from "@/components/home/Hero";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import WorkflowPhases from "@/components/home/WorkflowPhases";
 import {
   Accordion,
   AccordionContent,
@@ -34,120 +13,6 @@ import { useTranslation } from "@/hooks/use-translation";
 import { homePathForUser } from "@/lib/role-home";
 
 // Live system stats are computed from SSE init + updates
-
-interface PhaseHighlight {
-  titleKey: string;
-  descriptionKey: string;
-  icon: LucideIcon;
-}
-
-interface Phase {
-  phaseKey: string;
-  titleKey: string;
-  captionKey: string;
-  highlights: PhaseHighlight[];
-}
-
-const PHASES: Phase[] = [
-  {
-    phaseKey: "phase1.title",
-    titleKey: "phase1.title",
-    captionKey: "phase1.description",
-    highlights: [
-      {
-        titleKey: "phase1.eligibility",
-        descriptionKey: "phase1.eligibilityDesc",
-        icon: ClipboardCheck,
-      },
-      {
-        titleKey: "phase1.qrTicket",
-        descriptionKey: "phase1.qrTicketDesc",
-        icon: QrCode,
-      },
-      {
-        titleKey: "phase1.queueMgmt",
-        descriptionKey: "phase1.queueMgmtDesc",
-        icon: Monitor,
-      },
-      {
-        titleKey: "phase1.notifications",
-        descriptionKey: "phase1.notificationsDesc",
-        icon: BellRing,
-      },
-    ],
-  },
-  {
-    phaseKey: "phase2.title",
-    titleKey: "phase2.title",
-    captionKey: "phase2.description",
-    highlights: [
-      {
-        titleKey: "phase2.documents",
-        descriptionKey: "phase2.documentsDesc",
-        icon: ClipboardCheck,
-      },
-      {
-        titleKey: "phase2.compliance",
-        descriptionKey: "phase2.complianceDesc",
-        icon: CheckCircle2,
-      },
-      {
-        titleKey: "phase2.archive",
-        descriptionKey: "phase2.archiveDesc",
-        icon: Monitor,
-      },
-    ],
-  },
-  {
-    phaseKey: "phase3.title",
-    titleKey: "phase3.title",
-    captionKey: "phase3.description",
-    highlights: [
-      {
-        titleKey: "phase3.ticketCall",
-        descriptionKey: "phase3.ticketCallDesc",
-        icon: Users,
-      },
-      {
-        titleKey: "phase3.caseWorkflow",
-        descriptionKey: "phase3.caseWorkflowDesc",
-        icon: ClipboardCheck,
-      },
-      {
-        titleKey: "phase3.analytics",
-        descriptionKey: "phase3.analyticsDesc",
-        icon: ArrowRight,
-      },
-    ],
-  },
-  {
-    phaseKey: "phase4.title",
-    titleKey: "phase4.title",
-    captionKey: "phase4.description",
-    highlights: [
-      {
-        titleKey: "phase4.caseAssignment",
-        descriptionKey: "phase4.caseAssignmentDesc",
-        icon: ClipboardCheck,
-      },
-      {
-        titleKey: "phase4.workflowTracking",
-        descriptionKey: "phase4.workflowTrackingDesc",
-        icon: CalendarClock,
-      },
-      {
-        titleKey: "phase4.collaboration",
-        descriptionKey: "phase4.collaborationDesc",
-        icon: Smartphone,
-      },
-      {
-        titleKey: "phase4.completion",
-        descriptionKey: "phase4.completionDesc",
-        icon: CheckCircle2,
-      },
-    ],
-  },
-];
 
 const QR_MATRIX = [
   "1111110",
@@ -246,46 +111,6 @@ const TicketSnapshot = ({ t }: { t: (key: string) => string }) => (
   </div>
 );
 
-const PhaseCard = ({ t }: { t: (key: string) => string }) => {
-  return ({ phaseKey, titleKey, captionKey, highlights }: Phase) => (
-    <Card className="h-full border border-gray-200 bg-white p-6 shadow-none backdrop-blur-none hover:shadow-none">
-      <div className="flex items-center justify-between">
-        <Badge
-          variant="secondary"
-          className="rounded-full border-none px-3 py-1 text-xs font-semibold"
-        >
-          {t(phaseKey)}
-        </Badge>
-        <QrCode className="h-6 w-6 text-primary" />
-      </div>
-      <h3 className="mt-5 font-display text-2xl font-semibold text-foreground">
-        {t(titleKey)}
-      </h3>
-      <p className="mt-2 text-sm text-muted-foreground">{t(captionKey)}</p>
-      <div className="mt-6 space-y-5">
-        {highlights.map(
-          ({ titleKey: itemTitleKey, descriptionKey, icon: Icon }, index) => (
-            <div
-              key={itemTitleKey}
-              className="flex items-start gap-4 rounded-2xl border border-border/60 bg-background/60 p-4"
-            >
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                <Icon className="h-5 w-5" />
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm font-semibold text-foreground">
-                  {index + 1}. {t(itemTitleKey)}
-                </p>
-                <p className="text-sm text-muted-foreground">{t(descriptionKey)}</p>
-              </div>
-            </div>
-          ),
-        )}
-      </div>
-    </Card>
-  );
-};
-
 export default function Index() {
   const { user } = useAuth();
   const { t } = useTranslation();
@@ -346,25 +171,7 @@ export default function Index() {
         </div>
       </section>
 
-      <section className="relative border-t border-border/60 bg-background">
-        <div className="px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col items-start mb-8 sm:mb-12">
-            <h2 className="font-display text-2xl sm:text-3xl font-semibold text-foreground">
-              {t("home.workflowPhases")}
-            </h2>
-            <p className="mt-1 sm:mt-2 text-sm text-muted-foreground max-w-2xl">
-              {t("home.workflowSubtitle")}
-            </p>
-          </div>
-          <div className="grid gap-4 sm:gap-6 grid-cols-1 md:grid-cols-2">
-            {PHASES.map((phase) => {
-              const Card = PhaseCard({ t });
-              return <div key={phase.phaseKey}>{Card(phase)}</div>;
-            })}
-          </div>
-        </div>
-      </section>
-
+      <WorkflowPhases />
     </div>
   );
 }
