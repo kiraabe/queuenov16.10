@@ -30,7 +30,7 @@ const SiteHeader = () => {
 
   return (
     <header className="relative sticky top-0 z-50 w-full border-b border-border/60 bg-background/80 backdrop-blur">
-      <div className="w-full px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4 sm:gap-6 py-3 sm:py-4">
+      <div className="mx-auto w-full max-w-[1200px] px-5 min-[901px]:px-6 flex items-center justify-between gap-4 sm:gap-6 py-3 sm:py-4">
         <Link to="/" className="flex items-center gap-2 min-w-0 flex-shrink-0">
           <img
             src="/logos/lhpria-logo.webp"

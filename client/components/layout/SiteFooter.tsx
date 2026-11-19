@@ -8,7 +8,7 @@ const SiteFooter = () => {
   return (
     <footer className="relative overflow-hidden border-t border-border/60 bg-background/60">
       <div className="py-5">
-        <div className="container flex flex-col gap-3 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
+        <div className="mx-auto w-full max-w-[1200px] px-5 min-[901px]:px-6 flex flex-col gap-3 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span>
               {t("common.copyright", { year: new Date().getFullYear() })}
