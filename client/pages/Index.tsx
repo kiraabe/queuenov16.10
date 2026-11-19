@@ -1,4 +1,4 @@
-import { Link, Navigate } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import {
   ArrowRight,
   BellRing,
@@ -14,7 +14,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import Hero from "@/components/home/Hero";
 import {
   Card,
   CardContent,
@@ -299,41 +299,7 @@ export default function Index() {
 
   return (
     <div className="relative overflow-visible">
-      <section className="relative overflow-hidden">
-        <div className="absolute inset-0 -z-10 bg-blue-50" />
-        <div className="w-full px-4 sm:px-6 lg:px-8 grid items-center gap-8 sm:gap-12 py-12 sm:py-16 md:py-20 lg:py-24">
-          <div className="space-y-6 sm:space-y-8">
-            <Badge className="w-fit rounded-full border border-primary/30 bg-primary/10 px-3 sm:px-4 py-1 text-xs sm:text-sm font-medium text-primary">
-              {t("home.badgeText")}
-            </Badge>
-            <h1 className="font-display text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-semibold tracking-tight text-foreground">
-              {t("home.heroTitle")}{" "}
-              <span className="bg-gradient-to-r from-primary via-sky-500 to-indigo-500 bg-clip-text text-transparent">
-                {t("home.heroTitleSpan")}
-              </span>
-            </h1>
-            <p className="max-w-xl text-base sm:text-lg text-muted-foreground leading-relaxed">
-              {t("home.heroDesc")}
-            </p>
-            <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 sm:gap-4 pt-2">
-              <Button
-                asChild
-                size="lg"
-                className="h-11 sm:h-12 px-4 sm:px-6 text-sm sm:text-base shadow-lg shadow-primary/30 flex items-center justify-center gap-2"
-              >
-                <Link
-                  to="/reception"
-                  className="flex items-center gap-2 w-full sm:w-auto justify-center"
-                >
-                  <span>{t("home.launchBtn")}</span>
-                  <ArrowRight className="h-4 sm:h-5 w-4 sm:w-5" />
-                </Link>
-              </Button>
-            </div>
-          </div>
-        </div>
-
-      </section>
+      <Hero />
 
       <section
         id="features"
