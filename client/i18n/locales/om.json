@@ -10,6 +10,8 @@
     "heroDesc": "To'annoo dhimmaa, hordoffii raawwii hojjettootaa to'adhu, dabalataan daashboordii yeroo sirrii fi gabaasota otomaatikaawaa ta'aniin seera kabajamiu isaa mirkaneessi.",
     "launchBtn": "Konsoolii Simannaa Bani",
     "workflow": {
+      "title": "Sadarkaalee Adeemsa Hojii (Workflow Phases)",
+      "subtitle": "Bulchiinsa dhimmaa guutuu simannaa irraa kaasee hanga xumuraatti hordoffii yeroo qabatamaa wajjin.",
       "reception": {
         "title": "Simannaa / Bulchaa Dhimmaa (Reception / Case Manager)",
         "description": "Tikeetiin tajaajila filatameen ni uumama, koodiin QR ni qophaa'a, akkasumas lakkoofsi tikeetii maamilaaf ni mul'ata.",
