@@ -4,9 +4,9 @@ import { useTranslation } from "@/hooks/use-translation";
 import styles from "./Hero.module.css";
 
 const queue = [
-  { ticket: "A-024", service: "Cadastral Group", teller: "Teller 1", time: "04:12", state: "ok", labelKey: "home.previewOnTime" },
-  { ticket: "A-025", service: "Rights Group", teller: "Teller 3", time: "08:41", state: "warn", labelKey: "home.previewNearLimit" },
-  { ticket: "A-021", service: "Fixed Property Group", teller: "Teller 2", time: "12:07", state: "late", labelKey: "home.previewOverStandard" },
+  { ticket: "A-024", service: "Cadastral Services", teller: "Teller 1", time: "04:12", state: "ok", labelKey: "home.previewOnTime" },
+  { ticket: "A-025", service: "Rights Services", teller: "Teller 3", time: "08:41", state: "warn", labelKey: "home.previewNearLimit" },
+  { ticket: "A-021", service: "Fixed Property Services", teller: "Teller 2", time: "12:07", state: "late", labelKey: "home.previewOverStandard" },
 ] as const;
 
 export default function Hero() {
