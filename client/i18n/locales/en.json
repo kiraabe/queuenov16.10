@@ -21,6 +21,49 @@
     "previewOverStandard": "Over standard",
     "previewReportReady": "Report ready",
     "previewDailySummary": "Daily compliance summary",
+    "workflow": {
+      "title": "Workflow Phases",
+      "subtitle": "Complete case management from reception through completion with real-time tracking.",
+      "reception": {
+        "title": "Reception / Case Manager",
+        "description": "A ticket is created with the selected service, a QR code is generated, and the ticket number is displayed to the customer.",
+        "steps": {
+          "eligibility": { "title": "Eligibility verification", "text": "Verify customer service eligibility before creating a ticket." },
+          "qr": { "title": "Quick QR ticket issuance", "text": "Generate QR-coded tickets with service type and estimated wait time." },
+          "queue": { "title": "Queue management", "text": "Assign customers to appropriate service lines with real-time position tracking." },
+          "notify": { "title": "Customer notifications", "text": "Send real-time updates via QR code scans when customer's turn approaches." }
+        }
+      },
+      "archiver": {
+        "title": "Archiver / Documentation",
+        "description": "The archiver claims the ticket, fetches and verifies the required documents, and marks the case as ready.",
+        "steps": {
+          "collection": { "title": "Document collection", "text": "Gather all supporting documents and attachments for completed cases." },
+          "compliance": { "title": "Compliance verification", "text": "Verify that all required documents meet compliance standards and completeness." },
+          "storage": { "title": "Archive storage", "text": "Securely store and organize archived documents for future retrieval." }
+        }
+      },
+      "teller": {
+        "title": "Teller / Service Delivery",
+        "description": "The teller calls the ticket, serves the customer, and documents the interaction.",
+        "steps": {
+          "calling": { "title": "Real-time ticket calling", "text": "Automatically call tickets in order with visual and audio alerts." },
+          "tracking": { "title": "Case workflow tracking", "text": "Document service interactions and capture outcomes in real-time." },
+          "analytics": { "title": "Service analytics", "text": "Track service times, customer satisfaction, and operational metrics." }
+        }
+      },
+      "backOffice": {
+        "title": "Employee / Back Office",
+        "tag": "Complex cases",
+        "description": "The employee works on the case, can transfer to another employee if needed, and completes the case.",
+        "steps": {
+          "assignment": { "title": "Case assignment", "text": "Receive transferred cases requiring detailed management and complex decision-making." },
+          "tracking": { "title": "Workflow tracking", "text": "Track case progress through multiple workflow stages with status updates." },
+          "collaboration": { "title": "Staff collaboration", "text": "Transfer cases to other employees if specialized knowledge or further review is needed." },
+          "completion": { "title": "Case completion", "text": "Mark cases as complete and initiate archival process for record-keeping." }
+        }
+      }
+    },
     "coreFeatures": "Core Features",
     "featuresSubtitle": "Key capabilities that enable efficient workflow management and customer communication.",
     "feat1Title": "Reception & Tickets",

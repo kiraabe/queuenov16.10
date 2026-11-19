@@ -9,6 +9,47 @@
     "heroTitleSpan": "seera kabajamiu mirkaneessi",
     "heroDesc": "To'annoo dhimmaa, hordoffii raawwii hojjettootaa to'adhu, dabalataan daashboordii yeroo sirrii fi gabaasota otomaatikaawaa ta'aniin seera kabajamiu isaa mirkaneessi.",
     "launchBtn": "Konsoolii Simannaa Bani",
+    "workflow": {
+      "reception": {
+        "title": "Simannaa / Bulchaa Dhimmaa (Reception / Case Manager)",
+        "description": "Tikeetiin tajaajila filatameen ni uumama, koodiin QR ni qophaa'a, akkasumas lakkoofsi tikeetii maamilaaf ni mul'ata.",
+        "steps": {
+          "eligibility": { "title": "Mirkaneessa Ulaagaa", "text": "Tikeetii uumuun dura maamilichi tajaajilicha argachuuf ulaagaa guutuu isaa mirkaneessi." },
+          "qr": { "title": "Kenniinsa Tikeetii QR Saffisaa", "text": "Tikeetii koodii QR kan gosa tajaajilaa fi tilmaama yeroo turtii qabu qopheessi." },
+          "queue": { "title": "Bulchiinsa Hiriiraa", "text": "Hordoffii sadarkaa hiriiraa yeroo qabatamaatiin maamiltoota gara sarara tajaajilaa sirriitti ramadi." },
+          "notify": { "title": "Beeksisa Maamiltootaa", "text": "Yeroo dabareen maamilaa dhiyaatu karaa dubbisa koodii QR tiin beeksisa yeroo qabatamaa ergi." }
+        }
+      },
+      "archiver": {
+        "title": "Kuusaa Galmee / Sanadootaa (Archiver / Documentation)",
+        "description": "Kuusaan galmee tikeeticha ni fudhata, sanadoota barbaachisoo ni fida, ni mirkaneessa, akkasumas dhimmichi qophii ta'uu isaa ni mallatteessa.",
+        "steps": {
+          "collection": { "title": "Walitti Qabiinsa Sanadaa", "text": "Dhimmoota xumuramaniif sanadoota deeggarsaa fi maxxantoota hunda walitti qabi." },
+          "compliance": { "title": "Mirkaneessa Seeraa fi Guutummaa", "text": "Sanadoonni barbaachisoon hundi guutuu ta'uu fi ulaagaa seeraa eeguu isaanii mirkaneessi." },
+          "storage": { "title": "Kuusaa Galmee", "text": "Sanadoota galmaa'an gara fuulduraatti salphaatti argachuuf haala amansiisaa ta'een qindeessii kaa'i." }
+        }
+      },
+      "teller": {
+        "title": "Teelera / Kenniinsa Tajaajilaa (Teller / Service Delivery)",
+        "description": "Teelerichi tikeetii ni waama, maamila ni keessummeessa, akkasumas adeemsa tajaajilichaa ni galmeessa.",
+        "steps": {
+          "calling": { "title": "Waamicha Tikeetii Yeroo Qabatamaa", "text": "Akeekkachiisa suuraa fi sagaleetiin tikeetota tartiibaan ofumaan waami." },
+          "tracking": { "title": "Hordoffii Adeemsa Dhimmaa", "text": "Walqunnamtii tajaajilaa galmeessi, bu'aa isaas yeroodhuma sana qabadhu." },
+          "analytics": { "title": "Xiinxala Tajaajilaa", "text": "Yeroo tajaajilaa, itti quufinsa maamiltootaa fi safartuulee raawwii hojii hordofi." }
+        }
+      },
+      "backOffice": {
+        "title": "Hojjetaa / Biiroo Duubaa (Employee / Back Office)",
+        "tag": "Dhimmoota Walxaxaa",
+        "description": "Hojjetaan dhimmicha irratti ni hojjeta, yoo barbaachise gara hojjetaa biraatti ni dabarsa, akkasumas dhimmicha ni xumura.",
+        "steps": {
+          "assignment": { "title": "Ramaddii Dhimmaa", "text": "Dhimmoota dabarfaman kan bulchiinsa bal'aa fi murtoo walxaxaa barbaadan fudhadhu." },
+          "tracking": { "title": "Hordoffii Adeemsa Hojii", "text": "Fooyya'iinsa haalaatiin adeemsa dhimmaa sadarkaa hojii adda addaa keessatti hordofi." },
+          "collaboration": { "title": "Waliin Hojjechuu Hojjettootaa", "text": "Ogummaan addaa ykn gamaaggamni dabalataa yoo barbaachise dhimmoota gara hojjettoota birootti dabarsi." },
+          "completion": { "title": "Xumura Dhimmaa", "text": "Dhimmoota akka xumuramanitti mallatteessi, akkasumas galmeedhaaf adeemsa kuusaa galmee jalqabsiisi." }
+        }
+      }
+    },
     "coreFeatures": "Amaloota Guguddoo",
     "featuresSubtitle": "Dandeettiiwwan furtuu bulchiinsa adeemsa hojii fi qunnamtii maamilaa hordofsiisani.",
     "feat1Title": "Simannaa & Tikkeetii",
