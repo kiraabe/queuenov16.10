@@ -28,7 +28,7 @@ export function LanguageMenu({ className }: { className?: string }) {
           variant="ghost"
           size="sm"
           className={cn(
-            "gap-2 px-2 h-10 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:bg-accent",
+            "gap-2 px-2 h-10 focus-visible:ring-0 focus-visible:ring-offset-0",
             className,
           )}
           aria-label="Change language"
